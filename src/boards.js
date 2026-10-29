@@ -152,11 +152,11 @@ function BudgetRow({ x, on }) {
   const left = x.done ? 0 : Math.max(0, x.planned - x.spent);
   const cell = (label, node) => html`<div class="min-w-0"><span class="block text-[12px] font-bold text-muted md:hidden">${label}</span>${node}</div>`;
   const more = (cls) => html`<button type="button" onClick=${() => on.item(x)} title="שם, תשלומים ומחיקה" aria-label=${`עוד אפשרויות: ${x.name}`} class=${cx('h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-brand-50 hover:text-brand-600 cursor-pointer', cls)}><${Icon} name="ellipsis" size=${18} /></button>`;
-  return html`<li class=${cx('grid grid-cols-4 items-end gap-x-2 gap-y-2 border-t py-3 md:items-center md:gap-x-3', BUDGET_COLS, over > 0 ? '-mx-2 rounded-xl border-transparent bg-error-50 px-2' : 'border-line')}>
+  return html`<li class=${cx('grid grid-cols-4 items-end gap-x-2 gap-y-2 border-t border-line py-3 md:items-center md:gap-x-3', BUDGET_COLS)}>
     <div class="col-span-4 flex min-w-0 items-center gap-2.5 md:col-span-1">
       <span class="fb-chip-ic h-9 w-9 shrink-0"><${Icon} name=${x.icon || 'package'} size=${17} /></span>
       <b class=${cx('min-w-0 truncate text-[15px]', x.done && 'text-muted')}>${x.name}</b>
-      ${over > 0 && html`<${Tag} tone="late"><${Icon} name="triangle-alert" size=${13} />חריגה ${fmt(over)}<//>`}
+      ${over > 0 && html`<${Tag} tone="late">חריגה ${fmt(over)}<//>`}
       <span class="flex-1"></span>
       ${more('inline-flex md:hidden')}
     </div>
@@ -179,7 +179,7 @@ function BudgetRow({ x, on }) {
   </li>`;
 }
 
-// Past the budget: a red box right under the total, with what caused it and one fix.
+// Past the budget: one calm line right under the total, with what caused it and one fix.
 // An item over its plan that still fits in the budget gets a quiet line instead.
 function Overrun({ b, on }) {
   if (!b.overBudget) {
@@ -189,26 +189,15 @@ function Overrun({ b, on }) {
     </p>`;
   }
   const causes = [
-    ...b.overItems.map((x) => ({ id: x.id, text: html`<b>${x.name}</b>: שולמו ${fmt(x.spent)}, תכננת ${fmt(x.planned)}`, n: x.over })),
-    ...(b.allocated > b.budget ? [{ id: 'plan', text: html`<b>הפריטים שתכננת</b>: ${fmt(b.allocated)}, יותר מהתקציב`, n: b.allocated - b.budget }] : []),
+    ...b.overItems.map((x) => `${x.name}: שולמו ${fmt(x.spent)}, תכננת ${fmt(x.planned)}`),
+    ...(b.allocated > b.budget ? [`הפריטים שתכננת עוברים את התקציב ב-${fmt(b.allocated - b.budget)}`] : []),
   ];
-  return html`<div role="alert" class="mt-3 rounded-[14px] border-2 border-error/40 bg-error-50 p-3.5 md:p-4">
-    <div class="flex items-start gap-3">
-      <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-error text-white"><${Icon} name="triangle-alert" size=${20} /></span>
-      <div class="min-w-0 flex-1">
-        <p class="text-[13px] font-bold text-error">חריגה מתקציב ההקמה</p>
-        <p class="whitespace-nowrap font-display text-[22px] font-extrabold leading-tight text-error md:text-[30px]">${fmt(b.overBudget)} מעל התקציב</p>
-        <p class="mt-0.5 text-[14px] text-ink-2">ההקמה תעלה ${fmt(b.final)}, והתקציב הוא ${fmt(b.budget)}.</p>
-      </div>
-    </div>
-    ${causes.length > 0 &&
-    html`<ul class="mt-3 flex flex-col gap-1.5 border-t border-error/20 pt-3">
-      ${causes.map((c) => html`<li key=${c.id} class="flex items-baseline justify-between gap-3 text-[14px] text-ink"><span class="min-w-0">${c.text}</span><b class="shrink-0 font-display text-error tabular-nums">+${fmt(c.n)}</b></li>`)}
-    </ul>`}
-    <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-      <${Button} variant="mini" onClick=${() => on.setBudget(b.final)}>להגדיל את התקציב ל-${fmt(b.final)}<//>
-      <span class="text-[13px] text-muted">או להקטין פריט שעוד לא שולם</span>
-    </div>
+  return html`<div role="status" class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-error-50 px-3.5 py-2.5">
+    <p class="flex min-w-0 grow basis-[300px] items-start gap-2 text-[14px] text-ink">
+      <${Icon} name="triangle-alert" size=${17} class="mt-0.5 shrink-0 text-error" />
+      <span class="min-w-0"><b class="text-error">${fmt(b.overBudget)} מעל התקציב</b>${causes.length === 1 ? ` · ${causes[0]}` : causes.length ? ` · בגלל ${causes.length} פריטים` : ''}</span>
+    </p>
+    <button type="button" onClick=${() => on.setBudget(b.final)} class="shrink-0 ps-6 text-[13px] font-bold text-brand-600 hover:underline cursor-pointer md:ms-auto md:ps-0">להגדיל את התקציב ל-${fmt(b.final)}</button>
   </div>`;
 }
 
@@ -276,8 +265,8 @@ export function BudgetPanel({ state, on, n }) {
       <div><dt class="flex items-center gap-1.5 text-[13px] font-bold text-muted"><span class="h-2.5 w-2.5 rounded-sm bg-brand-300"></span>נשאר לשלם</dt><dd class="font-display text-[20px] font-extrabold md:text-[24px]">${fmt(b.remaining)}</dd></div>
       <div>
         <dt class="text-[13px] font-bold text-muted">בסוף ההקמה</dt>
-        <dd class=${cx('font-display text-[20px] font-extrabold md:text-[24px]', b.overBudget > 0 && 'text-error')}>${fmt(final)}</dd>
-        <dd class=${cx('flex items-center gap-1 text-[12px] font-bold', b.overBudget > 0 ? 'text-error' : 'text-money')}>${b.overBudget > 0 ? html`<${Icon} name="triangle-alert" size=${13} />${fmt(b.overBudget)} מעל התקציב` : final < b.budget ? `${fmt(b.budget - final)} פחות מהתקציב` : 'בדיוק לפי התקציב'}</dd>
+        <dd class="font-display text-[20px] font-extrabold md:text-[24px]">${fmt(final)}</dd>
+        <dd class=${cx('text-[12px] font-bold', b.overBudget > 0 ? 'text-error' : 'text-money')}>${b.overBudget > 0 ? `${fmt(b.overBudget)} מעל התקציב` : final < b.budget ? `${fmt(b.budget - final)} פחות מהתקציב` : 'בדיוק לפי התקציב'}</dd>
       </div>
     </dl>
     <div class=${cx('relative mb-2 mt-4 pb-5', b.overBudget > 0 && 'pt-5')} aria-hidden="true">
@@ -285,7 +274,7 @@ export function BudgetPanel({ state, on, n }) {
         <span class="h-full bg-brand-600" style=${{ width: pct(b.spent) }}></span>
         <span class="h-full bg-brand-300" style=${{ width: pct(b.remaining) }}></span>
         ${b.overBudget > 0 &&
-        html`<span class="absolute inset-y-0 left-0 border-r-2 border-surface" style=${{ width: pct(b.overBudget), background: 'repeating-linear-gradient(135deg, #c8443a 0 5px, #e07d74 5px 10px)' }}></span>`}
+        html`<span class="absolute inset-y-0 left-0 border-r-2 border-surface" style=${{ width: pct(b.overBudget), background: '#d9675d' }}></span>`}
       </div>
       ${b.overBudget > 0 && html`<span class="absolute left-0 top-0 whitespace-nowrap text-[11px] font-bold text-error">חריגה ${fmt(b.overBudget)}</span>`}
       <span class=${cx('absolute flex flex-col items-center', b.overBudget > 0 ? 'top-[17px]' : 'top-[-3px]')} style=${{ right: pct(b.budget), transform: 'translateX(50%)' }}>
