@@ -91,7 +91,7 @@ export function CashChart({ data, cushion, compact = false }) {
       <path d=${path(actual)} fill="none" stroke="#0038b8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round" style="filter:url(#pencil-rough)" />
       <line x1=${x(ti)} x2=${x(ti)} y1=${PAD.top - 4} y2=${h - PAD.bottom} stroke="#2d3e66" stroke-width="1.4" />
       <circle cx=${x(ti)} cy=${y(data[ti].bal)} r="5.5" fill="#fff" stroke="#0038b8" stroke-width="3" />
-      <text x=${x(ti) + 7} y=${PAD.top + 8} font-size="22" font-weight="700" fill="#2f5fc4" font-family="Amatic SC">היום</text>
+      <text x=${x(ti) + 6} y=${PAD.top + 6} font-size="13" font-weight="800" fill="#2d3e66" font-family="Assistant">היום</text>
       ${hd &&
       html`<g pointer-events="none">
         <line x1=${x(hover)} x2=${x(hover)} y1=${PAD.top} y2=${h - PAD.bottom} stroke="#2d3e66" stroke-width="1" stroke-dasharray="3 3" />
