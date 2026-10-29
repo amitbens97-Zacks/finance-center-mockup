@@ -238,8 +238,8 @@ const firstBase = () => {
 export const SCENARIOS = [
   {
     id: 'start',
-    label: 'כניסה ראשונה · באיזה שלב העסק?',
-    make: () => ({ ...setupBase(), stage: null, setupDone: false, opening: { amount: null, date: TODAY } }),
+    label: 'כניסה ראשונה · אחרי "העסק במספרים"',
+    make: () => ({ ...setupBase(), stage: null, setupDone: false, opening: { amount: 5180, date: TODAY } }),
   },
   { id: 'setup', label: 'שלב 1 · הקמה', make: setupBase },
   {

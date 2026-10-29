@@ -3,22 +3,23 @@
 //                        the break-even point, getting ready for the first client
 //   2. לקוחות ראשונים - payments from the first clients, what is left this month
 //   3. עסק פעיל        - the full cash flow
-// The first entry asks where the business is (the data pre-selects the answer). Later
+// It opens when "העסק במספרים" is done. The first entry asks one question, where the
+// business is (the data pre-selects the answer). Later
 // the data suggests moving on: the first deal closed, or 3 months in a row with income.
 // The user confirms. Every board opens with one "next step" note with one button.
 import { html, render, useState, useEffect, useRef, Icon, PencilCheck, cx } from './lib.js';
 import { Button, Toast, Logo, PartnerBubble } from './components.js';
 import { DevPanel } from './devnotes.js';
-import { Field, MoneyInput, Tag, inputCls, BoardHeading, StageTrack, NextStep } from './ui.js';
+import { Tag, BoardHeading, StageTrack, NextStep } from './ui.js';
 import { SetupBoard, FirstBoard, ActiveBoard } from './boards.js';
 import {
   RemindSheet, BalanceSheet, ExpenseSheet, SetupItemSheet, PayMethodSheet, DealSheet,
   SettingsSheet, StagesSheet, MoveToActiveSheet,
 } from './sheets.js';
-import { TODAY, USER, ENTITIES, FREQS, STAGES, SCENARIOS, DEFAULT_SCENARIO } from './data.js';
+import { TODAY, USER, STAGES, SCENARIOS, DEFAULT_SCENARIO } from './data.js';
 import {
-  dm, monthName, toDate, dayName, fmt, signed, balanceOn, alerts, paymentStatus, termsOf,
-  freqText, monthlyCost, monthSummary, setupSummary, runway, breakEven, readiness, stageSuggestion,
+  dm, monthName, toDate, fmt, signed, balanceOn, alerts, paymentStatus, termsOf,
+  monthlyCost, monthSummary, setupSummary, runway, breakEven, readiness, stageSuggestion,
   guessStage, incomeStreak, ACTION_LABEL,
 } from './finance.js';
 import { EMBED, IS_PHONE, readView, saveView, writeHandoff, takeHandoff, applyPhoneViewport, ViewToggle, PhonePreview } from './viewswitch.js';
@@ -43,108 +44,57 @@ const HEADINGS = {
   active: { title: ['הכסף של העסק, ', 'בזמן אמת'], sub: 'מה יש בקופה, מה נכנס ויוצא, ואיך תיראה הקופה בחודשים הבאים.' },
 };
 
-// ---------- first entry: where is the business, then 2-3 short questions ----------
+// ---------- first entry: one question, where is the business ----------
 
+// The finance center opens only when "העסק במספרים" is done, so the money, the setup
+// budget (with what was paid) and the fixed expenses are already there. The first entry
+// asks one thing and opens the board that fits the answer.
 function Onboarding({ state, onDone }) {
   const guess = guessStage(state);
   const [stage, setStage] = useState(null);
-  const [i, setI] = useState(0);
-  const [amount, setAmount] = useState(null);
-  const [exps, setExps] = useState(state.expenses);
-  const monthly = Math.round(exps.reduce((s, x) => s + monthlyCost(x), 0));
-  const [cushion, setCushion] = useState(null);
-  const [taxPct, setTax] = useState(ENTITIES[state.entity].taxPct);
-  const QUESTIONS = {
-    setup: ['השלב', 'הכסף לעסק'],
-    first: ['השלב', 'הכסף לעסק', 'ההוצאות הקבועות'],
-    active: ['השלב', 'היתרה בבנק', 'ההוצאות הקבועות', 'כרית ומס'],
-  };
-  const steps = QUESTIONS[stage || guess];
-  const last = i === steps.length - 1;
-  const finish = () => onDone({ stage, amount, expenses: exps, cushion: cushion ?? monthly * 2, taxPct });
-  const next = () => (last ? finish() : setI(i + 1));
-  const off = (i === 0 && !stage) || (i === 1 && amount == null);
-  // A single choice moves on by itself.
+  const b = setupSummary(state);
+  const monthly = Math.round(state.expenses.reduce((s, x) => s + monthlyCost(x), 0));
   const pick = (id) => {
     setStage(id);
-    setTimeout(() => setI(1), 220);
+    setTimeout(() => onDone({ stage: id, cushion: monthly * 2 }), 260);
   };
-  useEffect(() => {
-    const k = (e) => e.key === 'Enter' && !off && document.activeElement?.tagName !== 'SELECT' && next();
-    window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
-  });
   const dataHint = state.deals.length === 0 ? 'בלידים עוד לא נסגרה אף עסקה' : `בלידים נסגרו ${state.deals.length} עסקאות, ${incomeStreak(state)} חודשים ברציפות עם הכנסה`;
+  const carried = [
+    ['יש לעסק היום', fmt(state.opening.amount)],
+    ['שולם מההקמה', `${fmt(b.spent)} מתוך ${fmt(b.planned)}`],
+    ['הוצאות קבועות', `${fmt(monthly)} בחודש`],
+  ];
   return html`<div class="mx-auto max-w-[680px]">
-    <div class="mb-4 flex items-center gap-3">
-      <div class="flex flex-1 gap-1.5">${steps.map((s, k) => html`<span key=${s} class=${cx('h-2 flex-1 rounded-full', k < i ? 'bg-brand-600' : k === i ? 'bg-brand-300' : 'bg-line')}></span>`)}</div>
-      <span class="text-[12px] font-bold text-muted">${steps[i]} · ${i + 1}/${steps.length}</span>
-    </div>
-    <section class="rise fb-panel !p-5 md:!p-7" key=${i}>
-      ${i === 0 &&
-      html`<span class="fb-eyebrow">המרכז הפיננסי · כ-2 דקות</span>
-        <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">איפה <span class="fb-marker">העסק עומד</span> היום?</h1>
-        <p class="mt-2 text-[16px] text-ink">לפי התשובה נראה לך רק את מה שחשוב עכשיו. כשהעסק יתקדם, נציע לעבור לשלב הבא.</p>
-        <div class="mt-5 flex flex-col gap-2.5" role="radiogroup">
-          ${STAGES.map(
-            (s) => html`<button
-              key=${s.id}
-              type="button"
-              role="radio"
-              aria-checked=${stage === s.id}
-              onClick=${() => pick(s.id)}
-              class=${cx('fb-tile !items-start !gap-3 !px-4 !py-3.5 text-start', stage === s.id && 'is-on')}
-            >
-              <span class=${cx('grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 font-display text-[18px] font-extrabold', stage === s.id ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white text-ink')}>${s.n}</span>
-              <span class="min-w-0 flex-1">
-                <span class="flex flex-wrap items-center gap-2"><b class="!text-[17px]">${s.who}</b>${s.id === guess && html`<${Tag} tone="due">לפי הנתונים<//>`}</span>
-                <span class="mt-0.5 block text-[14px] leading-relaxed text-muted">${s.label}: ${s.shows}</span>
-              </span>
-            </button>`,
-          )}
-        </div>
-        <p class="mt-3 flex items-center gap-1.5 text-[13px] font-semibold text-sky-text"><${Icon} name="info" size=${15} />${dataHint}.</p>`}
-      ${i === 1 &&
-      html`<span class="fb-eyebrow">שלב ${STAGES.find((s) => s.id === stage).n}: ${STAGES.find((s) => s.id === stage).label}</span>
-        <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">${stage === 'active' ? html`כמה יש היום <span class="fb-marker">בחשבון העסק</span>?` : html`כמה כסף <span class="fb-marker">יש היום לעסק</span>?`}</h1>
-        <p class="mt-2 text-[16px] text-ink">${stage === 'setup' ? 'הכסף ששמת בצד לעסק, אחרי מה שכבר שילמת. ממנו נחשב כמה זמן הכסף מחזיק.' : 'מהמספר הזה נבנית הקופה. כל תשלום שמסומן "התקבל" מוסיף לה, וכל הוצאה יורדת ממנה ביום החיוב.'}</p>
-        <div class="mt-5 max-w-[320px]"><${MoneyInput} value=${amount} onInput=${setAmount} big autofocus /></div>
-        <p class="mt-2 text-[12px] text-muted">אפשר לבדוק באפליקציה של הבנק. פעם בחודש נבקש לאשר את המספר.</p>
-        ${stage === 'setup' && html`<p class="mt-4 flex items-start gap-1.5 text-[14px] font-semibold text-sky-text"><${Icon} name="info" size=${15} class="mt-0.5 shrink-0" />מה ששילמת מתקציב ההקמה כבר מגיע אוטומטית מ"העסק במספרים", אין צורך למלא שוב.</p>`}`}
-      ${i === 2 &&
-      html`<span class="fb-eyebrow">שלב ${STAGES.find((s) => s.id === stage).n}: ${STAGES.find((s) => s.id === stage).label}</span>
-        <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">מתי יורדות <span class="fb-marker">ההוצאות הקבועות</span>?</h1>
-        <p class="mt-2 flex items-center gap-1.5 text-[14px] font-semibold text-sky-text"><${Icon} name="pencil" size=${14} />מילאנו לפי התקציב שבנית ב"העסק במספרים". רק לבדוק את יום החיוב.</p>
-        <ul class="mt-4 flex flex-col divide-y divide-line">
-          ${exps.map(
-            (x, k) => html`<li key=${x.id} class="flex flex-wrap items-center gap-2 py-2.5">
-              <span class="min-w-0 flex-1"><b class="block text-[14px]">${x.name}</b><span class="font-display text-[14px] font-extrabold tabular-nums">${fmt(x.amount)}</span></span>
-              <select class=${cx(inputCls, '!h-11 !w-auto !text-[14px]')} value=${x.freq} onChange=${(e) => setExps(exps.map((o, j) => (j === k ? { ...o, freq: e.target.value, day: e.target.value === 'weekly' ? 0 : e.target.value === 'yearly' ? '01-01' : 1 } : o)))}>
-                ${FREQS.filter((f) => f.id !== 'once').map((f) => html`<option value=${f.id}>${f.label}</option>`)}
-              </select>
-              ${x.freq === 'monthly' && html`<select class=${cx(inputCls, '!h-11 !w-auto !text-[14px]')} value=${x.day} onChange=${(e) => setExps(exps.map((o, j) => (j === k ? { ...o, day: Number(e.target.value) } : o)))}>${Array.from({ length: 28 }, (_, d) => html`<option value=${d + 1}>ב-${d + 1} לחודש</option>`)}</select>`}
-              ${x.freq === 'weekly' && html`<select class=${cx(inputCls, '!h-11 !w-auto !text-[14px]')} value=${x.day} onChange=${(e) => setExps(exps.map((o, j) => (j === k ? { ...o, day: Number(e.target.value) } : o)))}>${Array.from({ length: 7 }, (_, d) => html`<option value=${d}>יום ${dayName(d)}</option>`)}</select>`}
-              ${x.freq === 'yearly' && html`<span class="text-[14px] text-muted">${freqText(x).replace('פעם בשנה ', '')}</span>`}
-            </li>`,
-          )}
-        </ul>`}
-      ${i === 3 &&
-      html`<span class="fb-eyebrow">שלב 3: עסק פעיל</span>
-        <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">כרית ביטחון <span class="fb-marker">והפרשה למס</span></h1>
-        <div class="mt-5 grid gap-4 sm:grid-cols-2">
-          <${Field} label="כרית ביטחון" hint="מתחת לסכום הזה הכריש מתריע.">
-            <${MoneyInput} value=${cushion ?? monthly * 2} onInput=${setCushion} />
-            <span class="mt-1.5 inline-flex"><${Tag} tone="due">הצעה: שני חודשי הוצאות<//></span>
-          <//>
-          <${Field} label="הפרשה למס מכל הכנסה" hint=${`ברירת מחדל ל${ENTITIES[state.entity].label}, מאזור רואה החשבון. הערכה בלבד.`}>
-            <div class="relative" dir="ltr"><span class="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted">%</span><input type="number" class=${cx(inputCls, 'pl-8 text-left font-display font-extrabold')} value=${taxPct} onInput=${(e) => setTax(Number(e.target.value))} /></div>
-          <//>
-        </div>`}
+    <section class="rise fb-panel !p-5 md:!p-7">
+      <span class="fb-eyebrow">נפתח בסיום "העסק במספרים"</span>
+      <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">איפה <span class="fb-marker">העסק עומד</span> היום?</h1>
+      <p class="mt-2 text-[16px] text-ink">שאלה אחת, ולפי התשובה נראה לך רק את מה שחשוב עכשיו. כשהעסק יתקדם, נציע לעבור לשלב הבא.</p>
+      <div class="mt-5 flex flex-col gap-2.5" role="radiogroup">
+        ${STAGES.map(
+          (s) => html`<button
+            key=${s.id}
+            type="button"
+            role="radio"
+            aria-checked=${stage === s.id}
+            disabled=${!!stage}
+            onClick=${() => pick(s.id)}
+            class=${cx('fb-tile !items-start !gap-3 !px-4 !py-3.5 text-start', stage === s.id && 'is-on')}
+          >
+            <span class=${cx('grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 font-display text-[18px] font-extrabold', stage === s.id ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white text-ink')}>${s.n}</span>
+            <span class="min-w-0 flex-1">
+              <span class="flex flex-wrap items-center gap-2"><b class="!text-[17px]">${s.who}</b>${s.id === guess && html`<${Tag} tone="due">לפי הנתונים<//>`}</span>
+              <span class="mt-0.5 block text-[14px] leading-relaxed text-muted">${s.label}: ${s.shows}</span>
+            </span>
+          </button>`,
+        )}
+      </div>
+      <p class="mt-3 flex items-center gap-1.5 text-[13px] font-semibold text-sky-text"><${Icon} name="info" size=${15} />${dataHint}.</p>
     </section>
-    <div class="mt-4 flex items-center justify-between gap-3">
-      ${i > 0 ? html`<${Button} variant="secondary" onClick=${() => setI(i - 1)}>חזרה<//>` : html`<span></span>`}
-      ${off && i === 1 && html`<span class="fb-status is-reason max-sm:hidden">צריך את הסכום כדי להמשיך</span>`}
-      ${i > 0 && html`<${Button} disabled=${off} onClick=${next}>${last ? 'סיום' : 'המשך'}${last ? html`<${PencilCheck} size=${20} color="#fff" weight=${2.8} />` : html`<${Icon} name="arrow-left" size=${20} />`}<kbd class="fb-key max-md:hidden">↵</kbd><//>`}
+    <div class="mt-4 rounded-[14px] border-[1.5px] border-dashed border-line bg-white/70 px-4 py-3">
+      <p class="flex items-center gap-1.5 text-[13px] font-bold text-muted"><${PencilCheck} size=${15} color="#2d3e66" weight=${2.6} />כבר מוכן מ"העסק במספרים", אין צורך למלא שוב</p>
+      <dl class="mt-2 grid gap-x-5 gap-y-1.5 sm:grid-cols-3">
+        ${carried.map(([k, v]) => html`<div key=${k}><dt class="text-[12px] font-semibold text-muted">${k}</dt><dd class="font-display text-[16px] font-extrabold tabular-nums text-ink">${v}</dd></div>`)}
+      </dl>
     </div>
   </div>`;
 }
@@ -368,7 +318,7 @@ function App({ view, onViewChange }) {
               'relative flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 text-[14px] font-bold transition-colors cursor-pointer xl:px-3 2xl:gap-2 2xl:px-4',
               id === 'finance' ? 'bg-brand-100 text-brand-600' : 'text-muted hover:bg-canvas hover:text-ink',
             )}
-          ><${Icon} name=${icon} size=${17} /> ${label}</button>`,
+          ><${Icon} name=${icon} size=${17} /> ${label}${id === 'finance' && !state.setupDone && html`<span class="rounded-full bg-brand-600 px-1.5 text-[11px] font-extrabold text-white">חדש</span>`}</button>`,
         )}
       </nav>
       <div class="ms-auto flex items-center gap-1 lg:ms-0">
@@ -388,13 +338,11 @@ function App({ view, onViewChange }) {
           ${!state.setupDone
             ? html`<${Onboarding}
                 state=${state}
-                onDone=${({ stage, amount, expenses, cushion, taxPct }) => {
+                onDone=${({ stage, cushion }) => {
                   update((s) => {
                     s.setupDone = true;
                     s.stage = stage;
-                    s.opening = { amount, date: TODAY };
-                    s.expenses = expenses;
-                    s.taxPct = taxPct;
+                    // Suggested cushion: two months of expenses. Can be changed in the settings.
                     if (stage === 'active') s.cushion = cushion;
                   });
                   showToast('המרכז הפיננסי מוכן', 'check');
@@ -418,7 +366,7 @@ function App({ view, onViewChange }) {
         </div>
       </main>
       <${PartnerBubble}
-        message=${step ? `${step.title}. ${step.text || ''}`.trim() : 'כמה שאלות קצרות, ואז רואים רק את מה שחשוב לעסק עכשיו.'}
+        message=${step ? `${step.title}. ${step.text || ''}`.trim() : 'שאלה אחת, ואז רואים רק את מה שחשוב לעסק עכשיו.'}
         mood=${step ? step.mood : 'calm'}
         unread=${false}
         onRead=${() => {}}
