@@ -4,6 +4,6 @@
 משימה 1 בסקופ הבא (מפת הדרכים · שלב 2 · סעיף 4).
 
 - הרצה מקומית: `open-mockup.bat` (פורט 4181), או `python -m http.server 4181`.
-- תרחישים והערות למפתחים: כפתור `</>` בכותרת, או Shift+D. קישור ישיר: `?scenario=setup|regular|tight|paid|nodeals`, וחלון פתוח: `&sheet=deal|remind|balance|expense|settings`.
+- תרחישים והערות למפתחים: כפתור `</>` בכותרת, או Shift+D. קישור ישיר: `?scenario=setup|regular|tight|paid|nodeals`, וחלון פתוח: `&sheet=deal|remind|balance|expense|settings`, ולשונית: `&tab=week|payments|expenses`.
 - "היום" במוק-אפ קבוע: 29.10.2026.
 - כל החישובים ב-`src/finance.js` (יתרה, צפי, רווח נקי, תזכורות, שבוע במספרים).
