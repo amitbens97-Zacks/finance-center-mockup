@@ -189,7 +189,8 @@ export function monthSummary(state, anyDay = TODAY) {
   const expenses = state.expenses.reduce((s, x) => s + expenseDates(x, from, to).length * x.amount, 0);
   const tax = Math.round((received * state.taxPct) / 100);
   const net = received - expenses - tax;
-  return { from, to, received, pending, pendingList, expenses, tax, out: expenses + tax, net, goal: GOAL, gap: Math.max(0, GOAL - net) };
+  const goal = goalOf(state);
+  return { from, to, received, pending, pendingList, expenses, tax, out: expenses + tax, net, goal, gap: Math.max(0, goal - net) };
 }
 
 // Sure money in for a whole month (received + scheduled, not overdue).
@@ -267,14 +268,14 @@ export function alerts(state) {
   for (let i = 1; i <= 2 && active; i++) {
     const m = addMonths(monthStart(TODAY), i, 1);
     const inc = monthIncome(state, m);
-    if (inc.sure === 0 || inc.net < GOAL / 4) {
+    if (inc.sure === 0 || inc.net < goalOf(state) / 4) {
       const open = state.openDeals.reduce((t, o) => t + o.total, 0);
       out.push({
         id: `month-${m}`,
         tone: 'info',
         icon: 'calendar-x',
         title: inc.sure === 0 ? `ל${monthName(m)} עוד אין אף תשלום שנקבע` : `ל${monthName(m)} נקבעו רק ${fmt(inc.sure)}`,
-        text: open ? `חסרים ${fmt(Math.max(0, GOAL - inc.net))} ליעד. יש ${state.openDeals.length} עסקאות פתוחות, עד ${fmt(open)}.` : `חסרים ${fmt(Math.max(0, GOAL - inc.net))} ליעד.`,
+        text: open ? `חסרים ${fmt(Math.max(0, goalOf(state) - inc.net))} ליעד. יש ${state.openDeals.length} עסקאות פתוחות, עד ${fmt(open)}.` : `חסרים ${fmt(Math.max(0, goalOf(state) - inc.net))} ליעד.`,
         action: open ? 'deals' : null,
       });
       break;
@@ -363,6 +364,8 @@ export function stageSuggestion(state) {
 
 // ---------- the setup budget, the runway and the break-even point ----------
 
+// The monthly goal ("כמה כסף צריך להישאר לך בכל חודש?"), editable on the page.
+export const goalOf = (state) => state.goal ?? GOAL;
 export const monthlyFixed = (state) => state.expenses.reduce((s, x) => s + monthlyCost(x), 0);
 
 export function setupSummary(state) {
@@ -399,7 +402,7 @@ export function breakEven(state) {
   const keep = 1 - state.taxPct / 100;
   const monthly = Math.round(monthlyFixed(state));
   const cover = Math.ceil(monthly / keep);
-  const goal = Math.ceil((GOAL + monthly) / keep);
+  const goal = Math.ceil((goalOf(state) + monthly) / keep);
   const products = PRODUCTS.map((p) => ({ ...p, cover: Math.max(1, Math.ceil(cover / p.price)), goal: Math.ceil(goal / p.price) }));
   return { monthly, cover, goal, products };
 }

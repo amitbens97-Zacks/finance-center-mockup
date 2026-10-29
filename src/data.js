@@ -239,7 +239,7 @@ export const SCENARIOS = [
   {
     id: 'start',
     label: 'כניסה ראשונה · אחרי "העסק במספרים"',
-    make: () => ({ ...setupBase(), stage: null, setupDone: false, opening: { amount: 5180, date: TODAY } }),
+    make: () => ({ ...setupBase(), stage: null, setupDone: false, opening: { amount: 5180, date: '2026-10-28' } }),
   },
   { id: 'setup', label: 'שלב 1 · הקמה', make: setupBase },
   {

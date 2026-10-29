@@ -3,7 +3,7 @@
 import { html, useState, useEffect, useRef, Icon, PencilCheck, cx } from './lib.js';
 import { Button, Mark, Note, SharkAvatar } from './components.js';
 import { PARTNER, STAGES } from './data.js';
-import { signed } from './finance.js';
+import { fmt, signed } from './finance.js';
 
 export function Sheet({ title, onClose, children, footer, wide }) {
   useEffect(() => {
@@ -90,17 +90,96 @@ export const Amount = ({ n, class: cls = '' }) =>
   html`<span class=${cx('font-display font-extrabold tabular-nums', n > 0 ? 'text-money' : 'text-ink', cls)}>${signed(n)}</span>`;
 
 // A panel with a title line; the action (one mini button or a link) sits on the left.
-export function Panel({ title, icon, action, sub, class: cls = '', children }) {
-  return html`<section class=${cx('fb-panel flex min-w-0 flex-col !p-4 md:!p-5', cls)}>
-    <div class="mb-3 flex items-start justify-between gap-3">
+// `n` numbers the panel in reading order (1 = look here first) instead of an icon.
+export function Panel({ title, icon, n, action, sub, class: cls = '', children }) {
+  return html`<section class=${cx('fb-panel flex min-w-0 flex-col !p-4 md:!p-6', cls)}>
+    <div class="mb-4 flex items-start justify-between gap-3">
       <div class="min-w-0">
-        <h2 class="fb-h3 flex items-center gap-2">${icon && html`<span class="fb-chip-ic sketch-chip h-9 w-9 shrink-0"><${Icon} name=${icon} size=${18} /></span>`}${title}</h2>
+        <h2 class="fb-h3 flex items-center gap-2.5">
+          ${n != null
+            ? html`<span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-600 font-display text-[16px] font-extrabold text-white" aria-hidden="true">${n}</span>`
+            : icon && html`<span class="fb-chip-ic sketch-chip h-9 w-9 shrink-0"><${Icon} name=${icon} size=${18} /></span>`}${title}
+        </h2>
         ${sub && html`<p class="mt-1 text-[14px] text-muted">${sub}</p>`}
       </div>
       ${action}
     </div>
     ${children}
   </section>`;
+}
+
+// A number that changes in place: click (or Enter on it), type, Enter to save, Esc to
+// leave it as it was. The dashed underline and the pencil say "you can change this".
+// `quiet` (for table cells) shows the pencil only on hover or focus.
+export function NumEdit({ value, onSave, label, unit = '₪', quiet, class: cls = '' }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const ref = useRef();
+  useEffect(() => {
+    if (editing) {
+      ref.current?.focus();
+      ref.current?.select();
+    }
+  }, [editing]);
+  const shown = unit === '%' ? `${value}%` : fmt(value);
+  const commit = () => {
+    setEditing(false);
+    const v = Math.max(0, Math.round(Number(draft)));
+    if (draft !== '' && draft != null && !Number.isNaN(v) && v !== value) onSave(v);
+  };
+  if (editing)
+    return html`<span class="relative inline-flex" dir="ltr">
+      <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[0.6em] font-bold text-muted">${unit}</span>
+      <input
+        ref=${ref}
+        type="number"
+        inputmode="numeric"
+        aria-label=${label}
+        value=${draft ?? ''}
+        onInput=${(e) => setDraft(e.target.value)}
+        onBlur=${commit}
+        onKeyDown=${(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            commit();
+          }
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            setEditing(false);
+          }
+        }}
+        class=${cx('w-[6.5em] rounded-lg border-[1.5px] border-brand-600 bg-white py-0.5 pe-2 ps-7 text-left font-display font-extrabold tabular-nums text-ink outline-none ring-4 ring-brand-100', cls)}
+      />
+    </span>`;
+  return html`<button
+    type="button"
+    title="לשינוי"
+    aria-label=${`${label}: ${shown}. לשינוי`}
+    onClick=${() => {
+      setDraft(value);
+      setEditing(true);
+    }}
+    class=${cx('group -mx-1 inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-1 font-display font-extrabold text-ink underline decoration-brand-300 decoration-dashed decoration-[1.5px] underline-offset-[6px] hover:bg-brand-50 hover:decoration-brand-600 cursor-pointer', cls)}
+  >${shown}<${Icon} name="pencil" size=${14} class=${cx('shrink-0 text-brand-600 group-hover:opacity-100 group-focus-visible:opacity-100', quiet ? 'opacity-0' : 'opacity-50')} /></button>`;
+}
+
+// How a number is built, written out: "נכנס − יצא = נשאר". On a phone it reads as a
+// short receipt (one line per part); from md up the parts sit side by side.
+// parts: [{ op, label, value, sub, main, tone }]; the `main` part is the answer.
+export function Equation({ parts }) {
+  return html`<ol class="flex flex-col gap-2 md:flex-row md:items-stretch md:gap-0">
+    ${parts.flatMap((p, i) => [
+      i > 0 && html`<li key=${`op${i}`} aria-hidden="true" class="hidden w-9 shrink-0 items-center justify-center font-display text-[28px] font-extrabold text-faint md:flex">${p.op}</li>`,
+      html`<li key=${`p${i}`} class=${cx('flex min-w-0 items-center justify-between gap-3 rounded-[14px] px-4 py-3 md:flex-1 md:flex-col md:items-start md:justify-start md:gap-1.5', p.main ? 'bg-brand-100/70 ring-2 ring-brand-600/25' : 'bg-canvas')}>
+        <span class=${cx('text-[13px] font-bold', p.main ? 'text-brand-600' : 'text-muted')}>${i > 0 && html`<span class="me-1 font-extrabold md:hidden">${p.op}</span>`}${p.label}</span>
+        <span class="min-w-0 text-end md:text-start">
+          <span class=${cx('block font-display font-extrabold leading-none', p.main ? 'text-[28px] md:text-[36px]' : 'text-[20px] md:text-[26px]', p.tone || 'text-ink')}>${p.value}</span>
+          ${p.sub && html`<span class="mt-1 block text-[12px] font-semibold leading-snug text-muted">${p.sub}</span>`}
+        </span>
+      </li>`,
+    ])}
+  </ol>`;
 }
 
 // ---------- the page heading: stage number as the watermark, one marked phrase ----------

@@ -254,6 +254,11 @@ function App({ view, onViewChange }) {
     });
     showToast(`${fmt(payment.amount)} מ${deal.client} נכנסו`, 'check', () => setState(before));
   };
+  const change = (fn, text) => {
+    const before = clone(state);
+    update(fn);
+    showToast(text, 'check', () => setState(before));
+  };
   const remind = (deal, payment) => setSheet({ type: 'remind', deal, payment });
   const toTab = (t) => {
     if (state.stage === 'active') setTab(t);
@@ -280,6 +285,21 @@ function App({ view, onViewChange }) {
     },
     deal: () => setSheet({ type: 'deal' }),
     settings: () => setSheet({ type: 'settings' }),
+    // In-place edits. Each one can be undone from the toast.
+    setItem: (id, patch) => change((s) => {
+      const x = s.setup.find((o) => o.id === id);
+      // A changed payment is dated today, so it leaves the money today.
+      if ('spent' in patch && patch.spent !== x.spent) x.spentOn = patch.spent > 0 ? TODAY : null;
+      Object.assign(x, patch);
+    }, 'תקציב ההקמה עודכן'),
+    setExpense: (id, patch) => change((s) => Object.assign(s.expenses.find((o) => o.id === id), patch), 'ההוצאה עודכנה'),
+    setMoney: (v) => {
+      const diff = v - balanceOn(state, TODAY);
+      if (diff) change((s) => s.adjustments.push({ date: TODAY, amount: diff }), `עודכן · ${signed(diff)} נרשמו כעדכון יתרה`);
+    },
+    setTax: (v) => change((s) => (s.taxPct = Math.min(60, v)), 'אחוז המס עודכן'),
+    setGoal: (v) => change((s) => (s.goal = v), 'היעד החודשי עודכן'),
+    setCushion: (v) => change((s) => (s.cushion = v), 'כרית הביטחון עודכנה'),
   };
   const list = alerts(state);
   const alertAct = (a) => (a.action === 'remind' ? remind(a.deal, a.payment) : a.action === 'paid' ? markPaid(a.deal, a.payment) : toTab('payments'));
