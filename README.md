@@ -3,7 +3,13 @@
 מוק-אפ פרונט בלבד של עמוד הכספים החדש ("המרכז הפיננסי"), לפי מערכת העיצוב של FlowBiz.
 משימה 1 בסקופ הבא (מפת הדרכים · שלב 2 · סעיף 4).
 
+המרכז מתאים את עצמו לשלב של העסק: 1 הקמה, 2 לקוחות ראשונים, 3 עסק פעיל.
+
 - הרצה מקומית: `open-mockup.bat` (פורט 4181), או `python -m http.server 4181`.
-- תרחישים והערות למפתחים: כפתור `</>` בכותרת, או Shift+D. קישור ישיר: `?scenario=setup|regular|tight|paid|nodeals`, וחלון פתוח: `&sheet=deal|remind|balance|expense|settings`, ולשונית: `&tab=week|payments|expenses`.
+- תרחישים והערות למפתחים: כפתור `</>` בכותרת, או Shift+D.
+- קישור ישיר לתרחיש: `?scenario=start|setup|firstdeal|first|ready|regular|tight|paid`.
+- חלון פתוח: `&sheet=stages|pay|item|deal|remind|balance|expense|settings|active`. לשונית: `&tab=...`.
+- `?embed` מציג את תצוגת הטלפון.
 - "היום" במוק-אפ קבוע: 29.10.2026.
-- כל החישובים ב-`src/finance.js` (יתרה, צפי, רווח נקי, תזכורות, שבוע במספרים).
+- כל החישובים ב-`src/finance.js` (השלב, תקציב ההקמה, כמה זמן הכסף מחזיק, נקודת האיזון, יתרה, צפי, תזכורות).
+- הלוחות לפי שלב: `src/boards.js`. החלונות: `src/sheets.js`. החלקים המשותפים: `src/ui.js`.

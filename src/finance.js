@@ -8,7 +8,8 @@
 //     payment leaves the forecast until it is received. Open deals are shown apart,
 //     as a range, and never inside the expected cash.
 //   - Net profit = money in, minus expenses, minus the tax provision (a % of money in).
-import { TODAY, GOAL, WEEK_TARGET, PRODUCTS, TERMS } from './data.js';
+//   - Setup payments (one-time items of the setup budget) leave the cash on the day paid.
+import { TODAY, GOAL, WEEK_TARGET, PRODUCTS, TERMS, STAGES } from './data.js';
 
 // ---------- dates as 'YYYY-MM-DD' ----------
 
@@ -122,6 +123,7 @@ export function events(state, from, to) {
   for (const x of state.expenses) {
     for (const d of expenseDates(x, from, to)) ev.push({ date: d, amount: -x.amount, kind: 'out', sure: true, label: x.name, expense: x });
   }
+  for (const s of state.setup || []) if (s.spent > 0 && s.spentOn && s.spentOn >= from && s.spentOn <= to) ev.push({ date: s.spentOn, amount: -s.spent, kind: 'out', sure: true, label: s.name, setupItem: s });
   for (const a of state.adjustments) if (a.date >= from && a.date <= to) ev.push({ date: a.date, amount: a.amount, kind: 'fix', sure: true, label: 'עדכון יתרה' });
   return ev.sort((a, b) => (a.date < b.date ? -1 : 1));
 }
@@ -240,7 +242,8 @@ export function alerts(state) {
       deal: l.deal,
     });
   }
-  const s = series(state, addDays(TODAY, 60));
+  const active = state.stage === 'active';
+  const s = active ? series(state, addDays(TODAY, 60)) : [];
   const today = s.find((d) => d.date === TODAY);
   if (today && today.bal < state.cushion)
     out.push({ id: 'cushion-now', tone: 'warn', icon: 'shield-alert', title: 'הקופה מתחת לכרית הביטחון', text: `בקופה ${fmt(today.bal)}, והכרית היא ${fmt(state.cushion)}.`, action: state.openDeals.length ? 'deals' : null });
@@ -261,7 +264,7 @@ export function alerts(state) {
       deal: e.deal,
     });
   // The first month ahead with no sure income above its expenses.
-  for (let i = 1; i <= 2; i++) {
+  for (let i = 1; i <= 2 && active; i++) {
     const m = addMonths(monthStart(TODAY), i, 1);
     const inc = monthIncome(state, m);
     if (inc.sure === 0 || inc.net < GOAL / 4) {
@@ -279,6 +282,8 @@ export function alerts(state) {
   }
   return out;
 }
+
+export const ACTION_LABEL = { remind: 'תזכורת ב-WhatsApp', paid: 'התקבל', deals: 'לעסקאות הפתוחות' };
 
 export function paymentLabel(deal, p) {
   if (deal.monthly) return `מנוי חודשי · ${monthName(p.due)}`;
@@ -323,3 +328,88 @@ const nf = new Intl.NumberFormat('he-IL', { maximumFractionDigits: 0 });
 export const fmt = (n) => `${nf.format(Math.round(n))} ₪`;
 // The sign stays next to the number in RTL text (an LTR isolate around sign + number).
 export const signed = (n) => `⁦${n >= 0 ? '+' : '−'}${nf.format(Math.abs(Math.round(n)))}⁩ ₪`;
+
+// ---------- stages ----------
+
+export const stageOf = (id) => STAGES.find((s) => s.id === id);
+
+// Consecutive months with money received, counting back from this month (or from
+// last month, when nothing came in yet this month).
+export function incomeStreak(state) {
+  const months = new Set();
+  for (const deal of state.deals) for (const p of dealPayments(deal, TODAY)) if (p.paidOn) months.add(monthKey(p.paidOn));
+  let m = monthStart(TODAY);
+  if (!months.has(monthKey(m))) m = addMonths(m, -1, 1);
+  let n = 0;
+  while (months.has(monthKey(m))) {
+    n += 1;
+    m = addMonths(m, -1, 1);
+  }
+  return n;
+}
+
+// What the data says, for the first-entry question and for moving on.
+export function guessStage(state) {
+  if (!state.deals.length) return 'setup';
+  return incomeStreak(state) >= 3 ? 'active' : 'first';
+}
+
+// The stage the data suggests moving to (the user confirms), or null.
+export function stageSuggestion(state) {
+  if (state.stage === 'setup' && state.deals.length > 0) return 'first';
+  if (state.stage === 'first' && incomeStreak(state) >= 3) return 'active';
+  return null;
+}
+
+// ---------- the setup budget, the runway and the break-even point ----------
+
+export const monthlyFixed = (state) => state.expenses.reduce((s, x) => s + monthlyCost(x), 0);
+
+export function setupSummary(state) {
+  const items = state.setup || [];
+  const planned = items.reduce((t, x) => t + x.planned, 0);
+  const spent = items.reduce((t, x) => t + x.spent, 0);
+  // What is still to pay: the rest of every item that is not done.
+  const remaining = items.filter((x) => !x.done).reduce((t, x) => t + Math.max(0, x.planned - x.spent), 0);
+  const over = items.reduce((t, x) => t + Math.max(0, x.spent - x.planned), 0);
+  return { items, planned, spent, remaining, over, done: items.filter((x) => x.done).length };
+}
+
+// How long the money lasts: the cash today, minus what is left to pay for the setup,
+// then every fixed expense (and every scheduled payment from a client) by its date.
+export function runway(state) {
+  const now = balanceOn(state, TODAY);
+  const left = setupSummary(state).remaining;
+  const after = now - left;
+  const monthly = Math.round(monthlyFixed(state));
+  let until = after < 0 ? TODAY : null;
+  if (!until)
+    for (const d of series(state, addMonths(TODAY, 36))) {
+      if (d.date > TODAY && d.bal - left < 0) {
+        until = addDays(d.date, -1);
+        break;
+      }
+    }
+  return { now, left, after, monthly, until, months: until ? Math.max(0, daysBetween(TODAY, until) / 30.44) : null };
+}
+
+// How much has to come in each month: to cover the fixed expenses, and to reach the goal
+// (both after the tax provision). Per product: how many sales a month that is.
+export function breakEven(state) {
+  const keep = 1 - state.taxPct / 100;
+  const monthly = Math.round(monthlyFixed(state));
+  const cover = Math.ceil(monthly / keep);
+  const goal = Math.ceil((GOAL + monthly) / keep);
+  const products = PRODUCTS.map((p) => ({ ...p, cover: Math.max(1, Math.ceil(cover / p.price)), goal: Math.ceil(goal / p.price) }));
+  return { monthly, cover, goal, products };
+}
+
+// Ready to take money from the first client.
+export function readiness(state) {
+  return [
+    { id: 'products', label: 'מחירים בסל המוצרים', done: PRODUCTS.length > 0, text: `${PRODUCTS.length} מוצרים בתשלום, מ"סל מוצרים"` },
+    { id: 'entity', label: 'סוג עוסק ואחוז מס', done: !!state.entity, text: state.entity === 'licensed' ? 'עוסק מורשה, מאזור רואה החשבון' : 'עוסק פטור, מאזור רואה החשבון' },
+    { id: 'pay', label: 'איך הלקוח משלם לך', done: !!state.payMethod, text: state.payMethod ? 'נכנס לכל תזכורת ללקוח' : 'ביט, פייבוקס, העברה או אשראי', action: 'pay' },
+    { id: 'bank', label: 'חשבון בנק נפרד לעסק', done: !!state.bankAccount, text: state.bankAccount ? 'הכסף של העסק לא מתערבב עם הפרטי' : 'כדי שהכסף של העסק לא יתערבב עם הפרטי', action: 'bank' },
+  ];
+}
