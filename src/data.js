@@ -113,7 +113,8 @@ const EXPENSES = [
 const SETUP_EXPENSES = EXPENSES.filter((x) => x.id !== 'x4');
 
 // The setup budget: one-time items planned in "העסק במספרים". spent = what was paid
-// so far (on spentOn), done = nothing more to pay.
+// so far (on spentOn), done = nothing more to pay. All three come in from that step,
+// so the first entry never asks for them.
 const SETUP_ITEMS = [
   { id: 's1', name: 'לוגו ומיתוג', icon: 'palette', planned: 1200, spent: 1200, spentOn: '2026-09-08', done: true },
   { id: 's2', name: 'אתר ודף נחיתה', icon: 'monitor', planned: 2500, spent: 1800, spentOn: '2026-09-22', done: false },
@@ -238,7 +239,7 @@ export const SCENARIOS = [
   {
     id: 'start',
     label: 'כניסה ראשונה · באיזה שלב העסק?',
-    make: () => ({ ...setupBase(), stage: null, setupDone: false, opening: { amount: null, date: TODAY }, setup: SETUP_ITEMS.map((s) => ({ ...s, spent: 0, spentOn: null, done: false })) }),
+    make: () => ({ ...setupBase(), stage: null, setupDone: false, opening: { amount: null, date: TODAY } }),
   },
   { id: 'setup', label: 'שלב 1 · הקמה', make: setupBase },
   {

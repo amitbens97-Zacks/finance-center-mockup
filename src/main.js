@@ -17,7 +17,7 @@ import {
 } from './sheets.js';
 import { TODAY, USER, ENTITIES, FREQS, STAGES, SCENARIOS, DEFAULT_SCENARIO } from './data.js';
 import {
-  addDays, dm, monthName, toDate, dayName, fmt, signed, balanceOn, alerts, paymentStatus, termsOf,
+  dm, monthName, toDate, dayName, fmt, signed, balanceOn, alerts, paymentStatus, termsOf,
   freqText, monthlyCost, monthSummary, setupSummary, runway, breakEven, readiness, stageSuggestion,
   guessStage, incomeStreak, ACTION_LABEL,
 } from './finance.js';
@@ -50,19 +50,18 @@ function Onboarding({ state, onDone }) {
   const [stage, setStage] = useState(null);
   const [i, setI] = useState(0);
   const [amount, setAmount] = useState(null);
-  const [paid, setPaid] = useState(() => new Set());
   const [exps, setExps] = useState(state.expenses);
   const monthly = Math.round(exps.reduce((s, x) => s + monthlyCost(x), 0));
   const [cushion, setCushion] = useState(null);
   const [taxPct, setTax] = useState(ENTITIES[state.entity].taxPct);
   const QUESTIONS = {
-    setup: ['השלב', 'הכסף לעסק', 'תקציב ההקמה'],
+    setup: ['השלב', 'הכסף לעסק'],
     first: ['השלב', 'הכסף לעסק', 'ההוצאות הקבועות'],
     active: ['השלב', 'היתרה בבנק', 'ההוצאות הקבועות', 'כרית ומס'],
   };
   const steps = QUESTIONS[stage || guess];
   const last = i === steps.length - 1;
-  const finish = () => onDone({ stage, amount, paid, expenses: exps, cushion: cushion ?? monthly * 2, taxPct });
+  const finish = () => onDone({ stage, amount, expenses: exps, cushion: cushion ?? monthly * 2, taxPct });
   const next = () => (last ? finish() : setI(i + 1));
   const off = (i === 0 && !stage) || (i === 1 && amount == null);
   // A single choice moves on by itself.
@@ -110,35 +109,9 @@ function Onboarding({ state, onDone }) {
         <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">${stage === 'active' ? html`כמה יש היום <span class="fb-marker">בחשבון העסק</span>?` : html`כמה כסף <span class="fb-marker">יש היום לעסק</span>?`}</h1>
         <p class="mt-2 text-[16px] text-ink">${stage === 'setup' ? 'הכסף ששמת בצד לעסק, אחרי מה שכבר שילמת. ממנו נחשב כמה זמן הכסף מחזיק.' : 'מהמספר הזה נבנית הקופה. כל תשלום שמסומן "התקבל" מוסיף לה, וכל הוצאה יורדת ממנה ביום החיוב.'}</p>
         <div class="mt-5 max-w-[320px]"><${MoneyInput} value=${amount} onInput=${setAmount} big autofocus /></div>
-        <p class="mt-2 text-[12px] text-muted">אפשר לבדוק באפליקציה של הבנק. פעם בחודש נבקש לאשר את המספר.</p>`}
+        <p class="mt-2 text-[12px] text-muted">אפשר לבדוק באפליקציה של הבנק. פעם בחודש נבקש לאשר את המספר.</p>
+        ${stage === 'setup' && html`<p class="mt-4 flex items-start gap-1.5 text-[14px] font-semibold text-sky-text"><${Icon} name="info" size=${15} class="mt-0.5 shrink-0" />מה ששילמת מתקציב ההקמה כבר מגיע אוטומטית מ"העסק במספרים", אין צורך למלא שוב.</p>`}`}
       ${i === 2 &&
-      stage === 'setup' &&
-      html`<span class="fb-eyebrow">שלב 1: הקמה</span>
-        <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">מה כבר <span class="fb-marker">שילמת</span> מההקמה?</h1>
-        <p class="mt-2 flex items-center gap-1.5 text-[14px] font-semibold text-sky-text"><${Icon} name="pencil" size=${14} />הפריטים מהתקציב שבנית ב"העסק במספרים". לסמן מה כבר שולם.</p>
-        <ul class="mt-4 flex flex-col gap-2">
-          ${state.setup.map(
-            (x) => html`<li key=${x.id}>
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked=${paid.has(x.id)}
-                onClick=${() => setPaid((p) => {
-                  const n = new Set(p);
-                  n.has(x.id) ? n.delete(x.id) : n.add(x.id);
-                  return n;
-                })}
-                class=${cx('flex min-h-[52px] w-full items-center gap-3 rounded-xl border-[1.5px] bg-white px-3 py-2 text-start cursor-pointer', paid.has(x.id) ? 'border-brand-600' : 'border-line')}
-              >
-                <span class=${cx('grid h-6 w-6 place-items-center rounded-md border-2', paid.has(x.id) ? 'border-ink' : 'border-line')}>${paid.has(x.id) && html`<${PencilCheck} size=${16} color="#0038b8" weight=${3} />`}</span>
-                <b class="flex-1 text-[15px]">${x.name}</b>
-                <span class="font-display text-[15px] font-extrabold tabular-nums">${fmt(x.planned)}</span>
-              </button>
-            </li>`,
-          )}
-        </ul>`}
-      ${i === 2 &&
-      stage !== 'setup' &&
       html`<span class="fb-eyebrow">שלב ${STAGES.find((s) => s.id === stage).n}: ${STAGES.find((s) => s.id === stage).label}</span>
         <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">מתי יורדות <span class="fb-marker">ההוצאות הקבועות</span>?</h1>
         <p class="mt-2 flex items-center gap-1.5 text-[14px] font-semibold text-sky-text"><${Icon} name="pencil" size=${14} />מילאנו לפי התקציב שבנית ב"העסק במספרים". רק לבדוק את יום החיוב.</p>
@@ -415,7 +388,7 @@ function App({ view, onViewChange }) {
           ${!state.setupDone
             ? html`<${Onboarding}
                 state=${state}
-                onDone=${({ stage, amount, paid, expenses, cushion, taxPct }) => {
+                onDone=${({ stage, amount, expenses, cushion, taxPct }) => {
                   update((s) => {
                     s.setupDone = true;
                     s.stage = stage;
@@ -423,8 +396,6 @@ function App({ view, onViewChange }) {
                     s.expenses = expenses;
                     s.taxPct = taxPct;
                     if (stage === 'active') s.cushion = cushion;
-                    // What was paid before today is already out of the amount entered.
-                    s.setup = s.setup.map((x) => (paid.has(x.id) ? { ...x, spent: x.planned, done: true, spentOn: addDays(TODAY, -1) } : x));
                   });
                   showToast('המרכז הפיננסי מוכן', 'check');
                 }}
