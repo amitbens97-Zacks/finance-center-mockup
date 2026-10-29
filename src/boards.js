@@ -37,7 +37,7 @@ const Num = ({ n, class: cls = '' }) => html`<span class=${cx('whitespace-nowrap
 
 // ---------- shared lists ----------
 
-function DealCards({ state, onPaid, onRemind, wide }) {
+function DealCards({ state, onPaid, onRemind, onChat, wide }) {
   // Deals with a late payment first, then by the closing date (newest first).
   const late = (d) => dealPayments(d, TODAY).some((p) => paymentStatus(p) === 'late');
   const deals = [...state.deals].sort((a, b) => late(b) - late(a) || (a.closed < b.closed ? 1 : -1));
@@ -50,6 +50,10 @@ function DealCards({ state, onPaid, onRemind, wide }) {
           <div class="min-w-0">
             <h3 class="font-display text-[16px] font-extrabold">${d.client}</h3>
             <p class="truncate text-[12px] text-muted">${productOf(d.product)?.short} · ${termsOf(d.terms).label} · נסגר ${dm(d.closed)}</p>
+            ${d.phone &&
+            html`<button type="button" onClick=${() => onChat(d)} title=${`שיחה עם ${d.client} ב-WhatsApp`} class="mt-1 inline-flex items-center gap-1 rounded-full bg-money-50 px-2 py-0.5 text-[12px] font-bold text-money hover:bg-[#d6ede4] cursor-pointer">
+              <${Icon} name="message-circle" size=${13} /><span dir="ltr" class="tabular-nums">${d.phone}</span>
+            </button>`}
           </div>
           <span class="text-end">
             <b class="block font-display text-[16px] font-extrabold tabular-nums">${d.monthly ? `${fmt(d.monthly.amount)} בחודש` : fmt(d.total)}</b>
@@ -175,10 +179,55 @@ function BudgetRow({ x, on }) {
   </li>`;
 }
 
+// The total setup budget: one big number that changes in place, and a slider under it.
+// While dragging only the number moves; the page updates when the slider is let go.
+function BudgetSlider({ b, on }) {
+  const [draft, setDraft] = useState(null);
+  const v = draft ?? b.budget;
+  // The scale follows the items, not the budget, so it stays still while dragging.
+  const max = Math.max(20000, Math.ceil((b.allocated * 2) / 5000) * 5000);
+  const status =
+    b.allocated > v
+      ? html`<span class="text-warn">הפריטים עוברים את התקציב ב-${fmt(b.allocated - v)}.</span>`
+      : v > b.allocated
+        ? `חולקו לפריטים ${fmt(b.allocated)}. עוד ${fmt(v - b.allocated)} לא חולקו, ונספרים ב"נשאר לשלם".`
+        : 'כל התקציב חולק לפריטים.';
+  return html`<div class="rounded-[14px] bg-canvas px-4 pb-3 pt-3.5">
+    <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+      <div>
+        <${Label}>סך תקציב ההקמה<//>
+        <div class="mt-1 min-h-[46px]">
+          ${draft != null
+            ? html`<span class="font-display text-[36px] font-extrabold leading-none text-ink md:text-[46px]">${fmt(draft)}</span>`
+            : html`<${NumEdit} value=${b.budget} label="סך תקציב ההקמה" onSave=${on.setBudget} class="text-[36px] leading-none md:text-[46px]" />`}
+        </div>
+      </div>
+      <p class="max-w-[360px] text-[13px] font-semibold text-muted">${status}</p>
+    </div>
+    <input
+      type="range"
+      min="0"
+      max=${max}
+      step="100"
+      value=${v}
+      aria-label="סך תקציב ההקמה"
+      aria-valuetext=${fmt(v)}
+      onInput=${(e) => setDraft(Number(e.target.value))}
+      onChange=${(e) => {
+        setDraft(null);
+        on.setBudget(Number(e.target.value));
+      }}
+      class="fb-range mt-4 w-full"
+      style=${{ '--p': `${(Math.min(v, max) / max) * 100}%` }}
+    />
+    <div class="mt-1 flex justify-between text-[12px] font-bold text-muted"><span>0 ₪</span><span>${fmt(max)}</span></div>
+  </div>`;
+}
+
 export function BudgetPanel({ state, on, n }) {
   const b = setupSummary(state);
   const final = b.spent + b.remaining;
-  const max = Math.max(b.planned, final) || 1;
+  const max = Math.max(b.budget, final) || 1;
   const pct = (v) => `${(v / max) * 100}%`;
   return html`<${Panel}
     n=${n}
@@ -186,27 +235,22 @@ export function BudgetPanel({ state, on, n }) {
     sub=${html`מ"העסק במספרים", מול מה ששולם בפועל. <${EditHint} />`}
     action=${html`<${Button} variant="mini" class="shrink-0" onClick=${on.addItem}><${Icon} name="plus" size=${15} />פריט<//>`}
   >
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:gap-10">
+    <${BudgetSlider} b=${b} on=${on} />
+    <dl class="mt-4 grid grid-cols-3 gap-3">
+      <div><dt class="flex items-center gap-1.5 text-[13px] font-bold text-muted"><span class="h-2.5 w-2.5 rounded-sm bg-brand-600"></span>שולם</dt><dd class="font-display text-[20px] font-extrabold md:text-[24px]">${fmt(b.spent)}</dd></div>
+      <div><dt class="flex items-center gap-1.5 text-[13px] font-bold text-muted"><span class="h-2.5 w-2.5 rounded-sm bg-brand-300"></span>נשאר לשלם</dt><dd class="font-display text-[20px] font-extrabold md:text-[24px]">${fmt(b.remaining)}</dd></div>
       <div>
-        <${Label}>סך תקציב ההקמה<//>
-        <${Big} class="mt-1">${fmt(b.planned)}<//>
+        <dt class="text-[13px] font-bold text-muted">בסוף ההקמה</dt>
+        <dd class="font-display text-[20px] font-extrabold md:text-[24px]">${fmt(final)}</dd>
+        <dd class=${cx('text-[12px] font-bold', final > b.budget ? 'text-warn' : 'text-money')}>${final > b.budget ? `${fmt(final - b.budget)} מעל התקציב` : final < b.budget ? `${fmt(b.budget - final)} פחות מהתקציב` : 'בדיוק לפי התקציב'}</dd>
       </div>
-      <dl class="grid flex-1 grid-cols-3 gap-3">
-        <div><dt class="flex items-center gap-1.5 text-[13px] font-bold text-muted"><span class="h-2.5 w-2.5 rounded-sm bg-brand-600"></span>שולם</dt><dd class="font-display text-[20px] font-extrabold md:text-[24px]">${fmt(b.spent)}</dd></div>
-        <div><dt class="flex items-center gap-1.5 text-[13px] font-bold text-muted"><span class="h-2.5 w-2.5 rounded-sm bg-brand-300"></span>נשאר לשלם</dt><dd class="font-display text-[20px] font-extrabold md:text-[24px]">${fmt(b.remaining)}</dd></div>
-        <div>
-          <dt class="text-[13px] font-bold text-muted">בסוף ההקמה</dt>
-          <dd class="font-display text-[20px] font-extrabold md:text-[24px]">${fmt(final)}</dd>
-          <dd class=${cx('text-[12px] font-bold', final > b.planned ? 'text-warn' : 'text-money')}>${final > b.planned ? `${fmt(final - b.planned)} מעל התקציב` : final < b.planned ? `${fmt(b.planned - final)} פחות מהתקציב` : 'בדיוק לפי התקציב'}</dd>
-        </div>
-      </dl>
-    </div>
+    </dl>
     <div class="relative mb-2 mt-4 pb-5" aria-hidden="true">
       <div class="flex h-3.5 gap-[2px] overflow-hidden rounded-full bg-line">
         <span class="h-full bg-brand-600" style=${{ width: pct(b.spent) }}></span>
         <span class="h-full bg-brand-300" style=${{ width: pct(b.remaining) }}></span>
       </div>
-      <span class="absolute top-[-3px] flex flex-col items-center" style=${{ right: pct(b.planned), transform: 'translateX(50%)' }}>
+      <span class="absolute top-[-3px] flex flex-col items-center" style=${{ right: pct(b.budget), transform: 'translateX(50%)' }}>
         <span class="h-5 w-[2px] rounded bg-ink"></span>
         <span class="mt-0.5 whitespace-nowrap text-[11px] font-bold text-ink">התקציב</span>
       </span>
@@ -216,9 +260,19 @@ export function BudgetPanel({ state, on, n }) {
       <span>פריט</span><span>תכננת</span><span>שולם</span><span>נשאר לשלם</span><span class="text-end">שולם במלואו</span>
     </div>
     <ul>${b.items.map((x) => html`<${BudgetRow} key=${x.id} x=${x} on=${on} />`)}</ul>
+    ${b.unallocated > 0 &&
+    html`<div class=${cx('grid grid-cols-4 items-end gap-x-2 gap-y-2 border-t border-line py-3 md:items-center md:gap-x-3', BUDGET_COLS)}>
+      <div class="col-span-4 flex min-w-0 items-center gap-2.5 md:col-span-1">
+        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-[1.5px] border-dashed border-brand-300 text-brand-600"><${Icon} name="plus" size=${16} /></span>
+        <span class="min-w-0"><b class="block text-[15px]">עוד לא חולק לפריטים</b><button type="button" onClick=${on.addItem} class="text-[12px] font-bold text-brand-600 hover:underline cursor-pointer">לחלק לפריט חדש</button></span>
+      </div>
+      <div><span class="block text-[12px] font-bold text-muted md:hidden">תכננת</span><${Num} n=${b.unallocated} class="text-[16px]" /></div>
+      <div><span class="block text-[12px] font-bold text-muted md:hidden">שולם</span><span class="font-display text-[16px] font-extrabold text-faint">—</span></div>
+      <div><span class="block text-[12px] font-bold text-muted md:hidden">נשאר לשלם</span><${Num} n=${b.unallocated} class="text-[16px]" /></div>
+    </div>`}
     <div class=${cx('grid grid-cols-4 items-center gap-x-2 gap-y-1 border-t-2 border-ink/70 pt-3 md:gap-x-3', BUDGET_COLS)}>
       <b class="col-span-4 text-[15px] md:col-span-1">סך הכול</b>
-      <div><span class="block text-[12px] font-bold text-muted md:hidden">תכננת</span><${Num} n=${b.planned} class="text-[15px] md:text-[17px]" /></div>
+      <div><span class="block text-[12px] font-bold text-muted md:hidden">תכננת</span><${Num} n=${b.allocated + b.unallocated} class="text-[15px] md:text-[17px]" /></div>
       <div><span class="block text-[12px] font-bold text-muted md:hidden">שולם</span><${Num} n=${b.spent} class="text-[15px] md:text-[17px]" /></div>
       <div><span class="block text-[12px] font-bold text-muted md:hidden">נשאר לשלם</span><${Num} n=${b.remaining} class="text-[15px] md:text-[17px]" /></div>
     </div>
@@ -244,7 +298,11 @@ export function RunwayPanel({ state, on, n, compact }) {
   const [open, setOpen] = useState(false);
   const left = state.deals.length ? 'לפי התשלומים שנקבעו, בלי לקוחות חדשים' : 'אם לא ייכנס כסף מלקוחות';
   return html`<${Panel} n=${n} title="כמה זמן הכסף מחזיק">
-    ${r.until
+    ${r.after < 0
+      ? html`<${Label}>הכסף של היום לא מספיק כדי לסיים את ההקמה<//>
+          <${Big} class=${cx('mt-1 text-error', compact && '!text-[30px] md:!text-[34px]')}>חסרים ${fmt(-r.after)}<//>
+          <p class="mt-1.5 text-[14px] text-muted">כדאי להקטין את תקציב ההקמה, לדחות פריט, או לסגור לקוח ראשון לפני שמשלמים על השאר.</p>`
+      : r.until
       ? html`<${Label}>הכסף של העסק מחזיק<//>
           <${Big} class=${cx('mt-1', compact && '!text-[30px] md:!text-[34px]')}>עד ${monthYear(r.until)}<//>
           <p class="mt-1.5 text-[14px] text-muted">בערך ${Math.max(0, Math.floor(r.months))} חודשים מהיום, ${left}.</p>
@@ -413,7 +471,7 @@ export function FirstBoard({ state, on, tab, onTab, payRef }) {
         sub="כל עסקה שנסגרת בלידים מקבלת לוח תשלומים."
         action=${html`<${Button} variant="mini" class="shrink-0" onClick=${on.deal}><${Icon} name="plus" size=${15} />עסקה<//>`}
       >
-        <${DealCards} state=${state} onPaid=${on.paid} onRemind=${on.remind} wide />
+        <${DealCards} state=${state} onPaid=${on.paid} onRemind=${on.remind} onChat=${on.chat} wide />
         <${OpenDeals} state=${state} />
       <//>
     </div>
@@ -586,7 +644,7 @@ export function ActiveBoard({ state, on, tab, onTab, insight, tabsRef }) {
               <p class="text-[14px] text-muted">כל עסקה שנסגרת בלידים מקבלת לוח תשלומים.</p>
               <${Button} variant="mini" onClick=${on.deal}><${Icon} name="plus" size=${15} />עסקה<//>
             </div>
-            <${DealCards} state=${state} onPaid=${on.paid} onRemind=${on.remind} />
+            <${DealCards} state=${state} onPaid=${on.paid} onRemind=${on.remind} onChat=${on.chat} />
             <${OpenDeals} state=${state} />
           </div>`}
           ${t === 'expenses' &&

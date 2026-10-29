@@ -3,7 +3,7 @@ import { html, useState, Icon, PencilCheck, cx } from './lib.js';
 import { Button } from './components.js';
 import { Sheet, Field, MoneyInput, Chips, Tag, inputCls } from './ui.js';
 import { TODAY, USER, PRODUCTS, TERMS, CATEGORIES, FREQS, ENTITIES, PAY_METHODS, STAGES } from './data.js';
-import { addDays, dm, dayName, fmt, signed, balanceOn, schedule, paymentLabel, productOf, termsOf, monthlyCost, monthlyFixed } from './finance.js';
+import { addDays, dm, dayName, fmt, signed, balanceOn, schedule, paymentLabel, productOf, termsOf, monthlyCost, monthlyFixed, waLink } from './finance.js';
 
 const payLine = (m) => {
   if (!m) return '';
@@ -22,7 +22,7 @@ export function RemindSheet({ state, deal, payment, onClose, onSend, onPayMethod
   return html`<${Sheet}
     title="תזכורת ב-WhatsApp"
     onClose=${onClose}
-    footer=${html`<${Button} variant="secondary" onClick=${onClose}>חזרה<//><${Button} onClick=${() => onSend(text)}><${Icon} name="message-circle" size=${18} />פתיחה ב-WhatsApp<//>`}
+    footer=${html`<${Button} variant="secondary" onClick=${onClose}>חזרה<//><${Button} onClick=${() => onSend(waLink(deal.phone, text))}><${Icon} name="message-circle" size=${18} />פתיחה ב-WhatsApp<//>`}
   >
     <p class="mb-3 text-[14px] text-muted">אל <b class="text-ink">${deal.client}</b> · ${deal.phone}. ההודעה כתובה בשפה שלך, ואפשר לשנות אותה לפני השליחה.</p>
     <div class="rounded-[14px] bg-[#e7f4ef] p-3">
@@ -32,7 +32,7 @@ export function RemindSheet({ state, deal, payment, onClose, onSend, onPayMethod
     html`<button type="button" onClick=${onPayMethod} class="mt-2 flex w-full items-center gap-2 rounded-xl bg-warn-50 px-3 py-2 text-start text-[14px] font-semibold text-warn cursor-pointer">
       <${Icon} name="wallet" size=${17} />עוד לא הגדרת איך לקוחות משלמים לך. להגדרה, והפרטים ייכנסו להודעה
     </button>`}
-    <p class="mt-2 text-[12px] text-muted">FlowBiz לא שולחים את ההודעה בעצמם: היא נפתחת ב-WhatsApp שלך ונשלחת ממך.</p>
+    <p class="mt-2 text-[12px] text-muted">FlowBiz לא שולחים את ההודעה בעצמם: הכפתור פותח את השיחה עם ${deal.client.split(' ')[0]} ב-WhatsApp, ההודעה כבר כתובה, ונשאר רק ללחוץ שליחה.</p>
   <//>`;
 }
 

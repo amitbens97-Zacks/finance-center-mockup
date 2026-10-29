@@ -328,6 +328,14 @@ export function schedule(total, terms, first) {
 const nf = new Intl.NumberFormat('he-IL', { maximumFractionDigits: 0 });
 export const fmt = (n) => `${nf.format(Math.round(n))} ₪`;
 // The sign stays next to the number in RTL text (an LTR isolate around sign + number).
+// A WhatsApp chat with a client: wa.me needs the number in international form
+// (050-1234567 -> 972501234567). With text, the message is already typed in the chat;
+// the user still presses send. No API and no WhatsApp Business account needed.
+export function waLink(phone, text) {
+  let n = String(phone || '').replace(/\D/g, '');
+  if (n.startsWith('0')) n = `972${n.slice(1)}`;
+  return `https://wa.me/${n}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
+}
 export const signed = (n) => `⁦${n >= 0 ? '+' : '−'}${nf.format(Math.abs(Math.round(n)))}⁩ ₪`;
 
 // ---------- stages ----------
@@ -368,14 +376,19 @@ export function stageSuggestion(state) {
 export const goalOf = (state) => state.goal ?? GOAL;
 export const monthlyFixed = (state) => state.expenses.reduce((s, x) => s + monthlyCost(x), 0);
 
+// The setup budget. `budget` is the total the user set (the slider), `allocated` is
+// what the items add up to. The part not yet split into items still counts as money
+// that will be spent, so it is inside "נשאר לשלם" and shortens how long the money lasts.
 export function setupSummary(state) {
   const items = state.setup || [];
-  const planned = items.reduce((t, x) => t + x.planned, 0);
+  const allocated = items.reduce((t, x) => t + x.planned, 0);
+  const budget = state.setupBudget ?? allocated;
   const spent = items.reduce((t, x) => t + x.spent, 0);
-  // What is still to pay: the rest of every item that is not done.
-  const remaining = items.filter((x) => !x.done).reduce((t, x) => t + Math.max(0, x.planned - x.spent), 0);
+  const unallocated = Math.max(0, budget - allocated);
+  // What is still to pay: the rest of every item that is not done, plus the unsplit part.
+  const remaining = items.filter((x) => !x.done).reduce((t, x) => t + Math.max(0, x.planned - x.spent), 0) + unallocated;
   const over = items.reduce((t, x) => t + Math.max(0, x.spent - x.planned), 0);
-  return { items, planned, spent, remaining, over, done: items.filter((x) => x.done).length };
+  return { items, planned: budget, budget, allocated, unallocated, spent, remaining, over, done: items.filter((x) => x.done).length };
 }
 
 // How long the money lasts: the cash today, minus what is left to pay for the setup,

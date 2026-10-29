@@ -20,7 +20,7 @@ import { TODAY, USER, STAGES, SCENARIOS, DEFAULT_SCENARIO } from './data.js';
 import {
   dm, monthName, toDate, fmt, signed, balanceOn, alerts, paymentStatus, termsOf,
   monthlyCost, monthSummary, setupSummary, runway, breakEven, readiness, stageSuggestion,
-  guessStage, incomeStreak, ACTION_LABEL,
+  guessStage, incomeStreak, waLink, ACTION_LABEL,
 } from './finance.js';
 import { EMBED, IS_PHONE, readView, saveView, writeHandoff, takeHandoff, applyPhoneViewport, ViewToggle, PhonePreview } from './viewswitch.js';
 
@@ -297,6 +297,11 @@ function App({ view, onViewChange }) {
       const diff = v - balanceOn(state, TODAY);
       if (diff) change((s) => s.adjustments.push({ date: TODAY, amount: diff }), `עודכן · ${signed(diff)} נרשמו כעדכון יתרה`);
     },
+    setBudget: (v) => v !== setupSummary(state).budget && change((s) => (s.setupBudget = v), `סך תקציב ההקמה: ${fmt(v)}`),
+    chat: (d) => {
+      console.info('WhatsApp:', waLink(d.phone));
+      showToast(`כאן נפתחת השיחה עם ${d.client} ב-WhatsApp`, 'message-circle');
+    },
     setTax: (v) => change((s) => (s.taxPct = Math.min(60, v)), 'אחוז המס עודכן'),
     setGoal: (v) => change((s) => (s.goal = v), 'היעד החודשי עודכן'),
     setCushion: (v) => change((s) => (s.cushion = v), 'כרית הביטחון עודכנה'),
@@ -423,10 +428,13 @@ function App({ view, onViewChange }) {
       payment=${sheet.payment}
       onClose=${() => setSheet(null)}
       onPayMethod=${() => setSheet({ type: 'pay' })}
-      onSend=${() => {
+      onSend=${(link) => {
+        // The live app opens the link (window.open). The mockup's numbers are made up,
+        // so it only shows where the button leads.
+        console.info('WhatsApp:', link);
         update((s) => (s.reminders[sheet.payment.id] = TODAY));
         setSheet(null);
-        showToast(`כאן נפתח WhatsApp עם ההודעה ל${sheet.deal.client}`, 'message-circle');
+        showToast(`כאן נפתחת השיחה עם ${sheet.deal.client} ב-WhatsApp, וההודעה כבר כתובה`, 'message-circle');
       }}
     />`}
     ${sheet?.type === 'balance' &&

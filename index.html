@@ -77,6 +77,14 @@
       .thin-scroll::-webkit-scrollbar-thumb { background: #d9d2c3; border-radius: 999px; }
       .thin-scroll::-webkit-scrollbar-track { background: transparent; }
       .no-scrollbar { scrollbar-width: none; }
+      /* The budget slider. The page is RTL, so the range fills from the right. */
+      .fb-range { -webkit-appearance: none; appearance: none; height: 10px; border-radius: 999px; cursor: pointer;
+        background: linear-gradient(to left, var(--color-brand-600, #0038b8) var(--p), #e3ddd0 var(--p)); }
+      .fb-range:focus-visible { outline: 4px solid var(--color-brand-100, #e9effb); outline-offset: 4px; }
+      .fb-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 999px;
+        background: #fff; border: 3px solid var(--color-brand-600, #0038b8); box-shadow: 0 2px 6px rgb(45 62 102 / .25); }
+      .fb-range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 999px;
+        background: #fff; border: 3px solid var(--color-brand-600, #0038b8); box-shadow: 0 2px 6px rgb(45 62 102 / .25); }
       .no-scrollbar::-webkit-scrollbar { display: none; }
 
       /* Pencil stroke that draws itself (check marks). */
