@@ -384,11 +384,17 @@ export function setupSummary(state) {
   const allocated = items.reduce((t, x) => t + x.planned, 0);
   const budget = state.setupBudget ?? allocated;
   const spent = items.reduce((t, x) => t + x.spent, 0);
-  const unallocated = Math.max(0, budget - allocated);
-  // What is still to pay: the rest of every item that is not done, plus the unsplit part.
-  const remaining = items.filter((x) => !x.done).reduce((t, x) => t + Math.max(0, x.planned - x.spent), 0) + unallocated;
   const over = items.reduce((t, x) => t + Math.max(0, x.spent - x.planned), 0);
-  return { items, planned: budget, budget, allocated, unallocated, spent, remaining, over, done: items.filter((x) => x.done).length };
+  // The part of the budget not split into items is a reserve: an item that went over its
+  // plan takes from it first, so raising the budget can cover an overrun.
+  const unallocated = Math.max(0, budget - allocated - over);
+  // What is still to pay: the rest of every item that is not done, plus the reserve.
+  const remaining = items.filter((x) => !x.done).reduce((t, x) => t + Math.max(0, x.planned - x.spent), 0) + unallocated;
+  // What the setup will cost in the end, and how much of that is past the budget.
+  const final = spent + remaining;
+  const overBudget = Math.max(0, final - budget);
+  const overItems = items.filter((x) => x.spent > x.planned).map((x) => ({ ...x, over: x.spent - x.planned }));
+  return { items, planned: budget, budget, allocated, unallocated, spent, remaining, over, final, overBudget, overItems, done: items.filter((x) => x.done).length };
 }
 
 // How long the money lasts: the cash today, minus what is left to pay for the setup,
