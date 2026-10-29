@@ -653,7 +653,15 @@ function App({ view, onViewChange }) {
   const [scenarioId, setScenarioId] = useState(() => from('scenarioId', SCENARIOS.some((s) => s.id === urlScenario) ? urlScenario : DEFAULT_SCENARIO));
   const [state, setState] = useState(() => from('state', SCENARIOS.find((s) => s.id === scenarioId).make()));
   const [tab, setTab] = useState(() => from('tab', 'week'));
-  const [sheet, setSheet] = useState(null);
+  // ?sheet=deal|remind|balance|expense|settings opens that window on load (direct links for the dev team).
+  const [sheet, setSheet] = useState(() => {
+    const t = new URLSearchParams(location.search).get('sheet');
+    if (t === 'remind') {
+      const deal = state.deals.find((d) => d.payments.some((p) => paymentStatus(p) === 'late'));
+      return deal ? { type: 'remind', deal, payment: deal.payments.find((p) => paymentStatus(p) === 'late') } : null;
+    }
+    return ['deal', 'balance', 'expense', 'settings'].includes(t) && state.setupDone ? { type: t } : null;
+  });
   const [dev, setDev] = useState(false);
   const [toast, setToast] = useState(null);
   const [read, setRead] = useState(() => new Set());
