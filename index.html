@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>המרכז הפיננסי · FlowBiz</title>
+    <meta name="description" content="מוק-אפ של המרכז הפיננסי של FlowBiz לפי מערכת העיצוב: בקופה היום, נכנס ויוצא החודש, רווח נקי מול היעד, גרף הקופה, מה מגיע ב-30 הימים הקרובים, תזכורות ושבוע במספרים." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Rubik:wght@700;800;900&family=Amatic+SC:wght@700&display=swap" rel="stylesheet" />
+    <!--
+      Design system: tokens and components (fb-*), copied from the FlowBiz design system.
+      The components sit in their own cascade layer between Tailwind's reset and its
+      utilities, so the reset never undoes them and utilities (hidden, md:flex) still win.
+    -->
+    <link rel="stylesheet" href="./assets/ds/tokens.css" />
+    <style>
+      @layer theme, base, ds, components, utilities;
+      @import url('./assets/ds/bundle.css') layer(ds);
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.475.0/dist/umd/lucide.min.js"></script>
+    <!--
+      Tailwind colors mapped onto the design-system tokens (flag palette):
+      blue for what you click, ink for text, sky for highlights, green only for money.
+    -->
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: 'Assistant', 'Rubik', system-ui, sans-serif;
+        --font-display: 'Rubik', 'Assistant', system-ui, sans-serif;
+        --font-hand: 'Amatic SC', 'Assistant', cursive;
+
+        --color-brand-50: #eef3fd;
+        --color-brand-100: #e9effb;
+        --color-brand-200: #dde9fc;
+        --color-brand-300: #8fb3ef;
+        --color-brand-400: #2f5fc4;
+        --color-brand-500: #2f5fc4;
+        --color-brand-600: #0038b8;
+        --color-brand-700: #002f9b;
+        --color-brand-800: #00257a;
+        --color-brand-900: #2d3e66;
+
+        --color-ink: #2d3e66;
+        --color-ink-2: #3b4b70;
+        --color-muted: #5f6775;
+        --color-faint: #a0a6af;
+        --color-line: #e7e1d5;
+        --color-canvas: #f7f5ef;
+        --color-surface: #fffefb;
+        --color-money: #12805c;
+        --color-money-50: #e7f4ef;
+        --color-gold: #e8b44a;
+        --color-error: #c8443a;
+        --color-error-50: #fbecea;
+        --color-warn: #a8670f;
+        --color-warn-50: #fbf3e4;
+        --color-strike: #c8443a;
+      }
+    </style>
+    <style>
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+        margin: 0;
+        font-family: var(--font-ui);
+        font-size: 16px;
+        background: var(--canvas);
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+      }
+      /* Rubik for headings and numbers, Assistant for everything read or clicked. */
+      h1, h2, h3, h4, .font-display, .font-black, .tabular-nums.font-bold { font-family: var(--font-display); }
+      .thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+      .thin-scroll::-webkit-scrollbar-thumb { background: #d9d2c3; border-radius: 999px; }
+      .thin-scroll::-webkit-scrollbar-track { background: transparent; }
+      .no-scrollbar { scrollbar-width: none; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+
+      /* Pencil stroke that draws itself (check marks). */
+      .pencil-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: pencilDraw 0.4s cubic-bezier(0.52, 0.02, 0.38, 1) forwards; }
+      @keyframes pencilDraw { to { stroke-dashoffset: 0; } }
+      .marker { background: linear-gradient(transparent 50%, rgba(143, 179, 239, 0.55) 50%, rgba(143, 179, 239, 0.55) 90%, transparent 90%); padding: 0 0.12em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+      .hand { font-family: var(--font-hand); font-weight: 700; letter-spacing: 0.01em; color: var(--sky-text); }
+      .strike-hand { font-family: var(--font-hand); font-weight: 700; color: var(--error); text-decoration: line-through; text-decoration-thickness: 2px; }
+      @media (max-width: 767px) {
+        input, textarea, select { font-size: 16px !important; }
+        .fb-notebook.fb-margin::after { display: none; }
+      }
+      button, a, [role='radio'], [role='checkbox'], [role='tab'] { -webkit-tap-highlight-color: transparent; }
+      .pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+      /* Hand-drawn icon box: slightly uneven corners and an offset pencil shadow. */
+      .sketch-chip { border-radius: 13px 9px 12px 10px / 10px 12px 9px 13px; box-shadow: var(--shadow-sketch); }
+      .paper { background: var(--surface); box-shadow: var(--shadow-paper); }
+      :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+      @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+      @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+      @keyframes grow { from { transform: scaleY(0.2); opacity: 0; } to { transform: none; opacity: 1; } }
+      @keyframes pulseDot { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+      @keyframes sweep { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+      @keyframes draw { from { stroke-dashoffset: 700; } to { stroke-dashoffset: 0; } }
+      @keyframes popIn { from { opacity: 0; transform: scale(0.96) translateY(4px); } to { opacity: 1; transform: none; } }
+      .pop-in { animation: popIn 0.18s ease-out backwards; }
+      .rise { animation: rise 0.35s ease-out backwards; }
+      .slide-in { animation: slideIn 0.3s ease-out backwards; }
+      .grow { animation: grow 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; transform-origin: top; }
+      .pulse-dot { animation: pulseDot 1s infinite; }
+      .draw { stroke-dasharray: 700; animation: draw 1.4s ease-out both; }
+      .skeleton { background: linear-gradient(90deg, #efeadf 25%, #fbf9f4 50%, #efeadf 75%); background-size: 200% 100%; animation: sweep 1.3s infinite linear; }
+      input[type='number']::-webkit-inner-spin-button,
+      input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+      input[type='number'] { -moz-appearance: textfield; }
+      @media print {
+        .no-print { display: none !important; }
+        body { background: #fff; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Pencil textures for hand-drawn marks (icons, checks, funnel tiers). -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <filter id="pencil-rough" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="2" seed="7" result="grain" />
+        <feDisplacementMap in="SourceGraphic" in2="grain" scale="0.9" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+      <filter id="pencil-rough-lg" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="3" result="grain" />
+        <feDisplacementMap in="SourceGraphic" in2="grain" scale="2.6" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+      <pattern id="pencil-hatch-lg" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
+        <line x1="0" y1="0" x2="0" y2="7" stroke="#6f9be8" stroke-width="1.6" stroke-linecap="round" opacity="0.55" />
+      </pattern>
+      <pattern id="pencil-hatch-light" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
+        <line x1="0" y1="0" x2="0" y2="7" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.22" />
+      </pattern>
+      <pattern id="pencil-hatch" width="2.6" height="2.6" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
+        <line x1="0" y1="0" x2="0" y2="2.6" stroke="#6f9be8" stroke-width="1" stroke-linecap="round" />
+      </pattern>
+    </svg>
+    <div id="app"></div>
+    <script src="./assets/ds/bundle.js"></script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
