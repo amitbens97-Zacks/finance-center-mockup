@@ -25,7 +25,7 @@ function niceStep(range, n) {
 }
 
 // The width of the box the chart sits in, so text is drawn at its real size.
-function useWidth(ref, fallback) {
+export function useWidth(ref, fallback) {
   const [w, setW] = useState(fallback);
   useEffect(() => {
     if (!ref.current) return;

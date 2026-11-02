@@ -10,6 +10,7 @@
 //   - Net profit = money in, minus expenses, minus the tax provision (a % of money in).
 //   - Setup payments (one-time items of the setup budget) leave the cash on the day paid.
 import { TODAY, GOAL, WEEK_TARGET, PRODUCTS, TERMS, STAGES } from './data.js';
+import { reportTotals } from './report.js';
 
 // ---------- dates as 'YYYY-MM-DD' ----------
 
@@ -357,16 +358,30 @@ export function incomeStreak(state) {
   return n;
 }
 
+// Months in a row with income in the uploaded report, back from its last month (the
+// current month is skipped while it is still empty: it has only just begun).
+export function reportStreak(state) {
+  if (!state.report || state.report.months.length < 2) return 0;
+  const ms = reportTotals(state.report).months;
+  let i = ms.length - 1;
+  if (ms[i].month === TODAY.slice(0, 7) && ms[i].in <= 0) i -= 1;
+  let n = 0;
+  while (i >= 0 && ms[i].in > 0) (n += 1), (i -= 1);
+  return n;
+}
+const hasIncome = (state) => state.deals.length > 0 || (state.report ? reportTotals(state.report).in > 0 : false);
+const streak = (state) => Math.max(incomeStreak(state), reportStreak(state));
+
 // What the data says, for the first-entry question and for moving on.
 export function guessStage(state) {
-  if (!state.deals.length) return 'setup';
-  return incomeStreak(state) >= 3 ? 'active' : 'first';
+  if (!hasIncome(state)) return 'setup';
+  return streak(state) >= 3 ? 'active' : 'first';
 }
 
 // The stage the data suggests moving to (the user confirms), or null.
 export function stageSuggestion(state) {
-  if (state.stage === 'setup' && state.deals.length > 0) return 'first';
-  if (state.stage === 'first' && incomeStreak(state) >= 3) return 'active';
+  if (state.stage === 'setup' && hasIncome(state)) return 'first';
+  if (state.stage === 'first' && streak(state) >= 3) return 'active';
   return null;
 }
 

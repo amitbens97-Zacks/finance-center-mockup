@@ -9,7 +9,8 @@
 - הרצה מקומית: `open-mockup.bat` (פורט 4181), או `python -m http.server 4181`.
 - תרחישים והערות למפתחים: כפתור `</>` בכותרת, או Shift+D.
 - קישור ישיר לתרחיש: `?scenario=start|setup|firstdeal|first|ready|regular|tight|paid`.
-- חלון פתוח: `&sheet=stages|pay|item|deal|remind|balance|expense|settings|active`. לשונית: `&tab=...`.
+- חלון פתוח: `&sheet=stages|pay|item|deal|remind|balance|expense|settings|active|import`. לשונית: `&tab=...`.
+- דוח רווח והפסד: `&sheet=import` פותח את העלאת הדוח (גם בכניסה הראשונה). שלושה קבצים לדוגמה, בדויים, ב-`samples/`.
 - `?embed` מציג את תצוגת הטלפון.
 - "היום" במוק-אפ קבוע: 29.10.2026.
 - כל החישובים ב-`src/finance.js` (השלב, תקציב ההקמה, כמה זמן הכסף מחזיק, נקודת האיזון, יתרה, צפי, תזכורות).

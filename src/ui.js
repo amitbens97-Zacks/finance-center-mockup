@@ -202,7 +202,7 @@ export function StageTrack({ stage, onOpen }) {
     type="button"
     onClick=${onOpen}
     title="מה כל שלב כולל"
-    class="group w-full shrink-0 rounded-[16px] bg-surface/80 px-3 py-2.5 text-start shadow-[var(--shadow-paper)] cursor-pointer md:w-[430px]"
+    class="group min-w-0 flex-1 rounded-[16px] bg-surface/80 px-3 py-2.5 text-start shadow-[var(--shadow-paper)] cursor-pointer md:w-[430px] md:flex-none"
     aria-label=${`השלב של העסק: ${STAGES[i].label}, ${i + 1} מתוך 3. לפרטים`}
   >
     <ol class="flex items-center gap-1.5">

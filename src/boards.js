@@ -11,6 +11,7 @@ import { html, useState, Icon, PencilCheck, cx } from './lib.js';
 import { Button } from './components.js';
 import { CashChart, ChartLegend, ChartTable } from './chart.js';
 import { Panel, Tag, Amount, Meter, NumEdit, Equation } from './ui.js';
+import { ReportPanel, ReportInvite } from './reportui.js';
 import { TODAY, CATEGORIES, ENTITIES } from './data.js';
 import {
   addDays, addMonths, dm, monthName, monthEnd, daysBetween, toDate, fmt,
@@ -409,6 +410,7 @@ export function SetupBoard({ state, on }) {
       <${BreakEvenPanel} state=${state} on=${on} n=${3} />
     </div>
     <${ReadyPanel} state=${state} on=${on} n=${4} />
+    ${state.report ? html`<${ReportPanel} state=${state} on=${on} n=${5} />` : html`<${ReportInvite} on=${on} />`}
   </div>`;
 }
 
@@ -502,7 +504,8 @@ export function FirstBoard({ state, on, tab, onTab, payRef }) {
         <${OpenDeals} state=${state} />
       <//>
     </div>
-    <${Tabs} n=${5} title="ההוצאות והתכנון" list=${list} tab=${t} onTab=${onTab}>
+    ${state.report ? html`<${ReportPanel} state=${state} on=${on} n=${5} />` : html`<${ReportInvite} on=${on} />`}
+    <${Tabs} n=${state.report ? 6 : 5} title="ההוצאות והתכנון" list=${list} tab=${t} onTab=${onTab}>
       ${t === 'expenses' && html`<p class="mb-3 text-[14px] text-muted">בממוצע <b class="font-display tabular-nums text-ink">${fmt(breakEven(state).monthly)}</b> בחודש. <${EditHint} /></p><${ExpenseList} state=${state} on=${on} />`}
       ${t === 'budget' && html`<${BudgetPanel} state=${state} on=${on} />`}
       ${t === 'breakeven' && html`<${BreakEvenPanel} state=${state} on=${on} />`}
@@ -682,5 +685,6 @@ export function ActiveBoard({ state, on, tab, onTab, insight, tabsRef }) {
         <//>
       </div>
     </div>
+    ${state.report ? html`<${ReportPanel} state=${state} on=${on} n=${5} />` : html`<${ReportInvite} on=${on} />`}
   </div>`;
 }

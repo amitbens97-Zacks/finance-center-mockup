@@ -10,6 +10,8 @@
 import { html, render, useState, useEffect, useRef, Icon, PencilCheck, cx } from './lib.js';
 import { Button, Toast, Logo, PartnerBubble } from './components.js';
 import { DevPanel } from './devnotes.js';
+import { ImportSheet, ReportInvite } from './reportui.js';
+import { reportTotals } from './report.js';
 import { Tag, BoardHeading, StageTrack, NextStep } from './ui.js';
 import { SetupBoard, FirstBoard, ActiveBoard } from './boards.js';
 import {
@@ -20,7 +22,7 @@ import { TODAY, USER, STAGES, SCENARIOS, DEFAULT_SCENARIO } from './data.js';
 import {
   dm, monthName, toDate, fmt, signed, balanceOn, alerts, paymentStatus, termsOf,
   monthlyCost, monthSummary, setupSummary, runway, breakEven, readiness, stageSuggestion,
-  guessStage, incomeStreak, waLink, ACTION_LABEL,
+  guessStage, incomeStreak, reportStreak, waLink, ACTION_LABEL,
 } from './finance.js';
 import { EMBED, IS_PHONE, readView, saveView, writeHandoff, takeHandoff, applyPhoneViewport, ViewToggle, PhonePreview } from './viewswitch.js';
 
@@ -34,7 +36,7 @@ const NAV = [
   ['leads', 'לידים', 'users'],
 ];
 const MOBILE_NAV = ['home', 'calendar', 'tasks', 'leads', 'finance'];
-const SHEETS = ['deal', 'remind', 'balance', 'expense', 'settings', 'stages', 'pay', 'item', 'active'];
+const SHEETS = ['deal', 'remind', 'balance', 'expense', 'settings', 'stages', 'pay', 'item', 'active', 'import'];
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const monthYear = (s) => `${monthName(s)} ${toDate(s).getFullYear()}`;
 
@@ -49,7 +51,7 @@ const HEADINGS = {
 // The finance center opens only when "העסק במספרים" is done, so the money, the setup
 // budget (with what was paid) and the fixed expenses are already there. The first entry
 // asks one thing and opens the board that fits the answer.
-function Onboarding({ state, onDone }) {
+function Onboarding({ state, onDone, onImport }) {
   const guess = guessStage(state);
   const [stage, setStage] = useState(null);
   const b = setupSummary(state);
@@ -58,7 +60,12 @@ function Onboarding({ state, onDone }) {
     setStage(id);
     setTimeout(() => onDone({ stage: id, cushion: monthly * 2 }), 260);
   };
-  const dataHint = state.deals.length === 0 ? 'בלידים עוד לא נסגרה אף עסקה' : `בלידים נסגרו ${state.deals.length} עסקאות, ${incomeStreak(state)} חודשים ברציפות עם הכנסה`;
+  const rt = state.report ? reportTotals(state.report) : null;
+  const dataHint = rt
+    ? `לפי הדוח שהעלית: הכנסה ב-${rt.withIncome} מתוך ${rt.keys.length} חודשים${reportStreak(state) ? `, ${reportStreak(state)} אחרונים ברציפות` : ''}`
+    : state.deals.length === 0
+      ? 'בלידים עוד לא נסגרה אף עסקה'
+      : `בלידים נסגרו ${state.deals.length} עסקאות, ${incomeStreak(state)} חודשים ברציפות עם הכנסה`;
   const carried = [
     ['יש לעסק היום', fmt(state.opening.amount)],
     ['שולם מההקמה', `${fmt(b.spent)} מתוך ${fmt(b.planned)}`],
@@ -96,6 +103,9 @@ function Onboarding({ state, onDone }) {
         ${carried.map(([k, v]) => html`<div key=${k}><dt class="text-[12px] font-semibold text-muted">${k}</dt><dd class="font-display text-[16px] font-extrabold tabular-nums text-ink">${v}</dd></div>`)}
       </dl>
     </div>
+    ${rt
+      ? html`<p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[14px] bg-money-50 px-4 py-2.5 text-[14px] text-ink"><${Icon} name="file-spreadsheet" size=${16} class="text-money" /><b>הדוח נקלט:</b> הכנסות ${fmt(rt.in)}, הוצאות ${fmt(rt.out)}<button type="button" onClick=${onImport} class="ms-auto text-[13px] font-bold text-brand-600 hover:underline cursor-pointer">דוח אחר</button></p>`
+      : html`<${ReportInvite} on=${{ importReport: onImport }} class="mt-3" />`}
   </div>`;
 }
 
@@ -200,7 +210,7 @@ function App({ view, onViewChange }) {
   // ?sheet=... opens that window on load (direct links for the dev team).
   const [sheet, setSheet] = useState(() => {
     const t = q.get('sheet');
-    if (!state.setupDone || !SHEETS.includes(t)) return null;
+    if ((!state.setupDone && t !== 'import') || !SHEETS.includes(t)) return null;
     if (t === 'remind') {
       const deal = state.deals.find((d) => d.payments.some((p) => paymentStatus(p) !== 'paid'));
       return deal ? { type: 'remind', deal, payment: deal.payments.find((p) => paymentStatus(p) !== 'paid') } : null;
@@ -302,6 +312,14 @@ function App({ view, onViewChange }) {
       console.info('WhatsApp:', waLink(d.phone));
       showToast(`כאן נפתחת השיחה עם ${d.client} ב-WhatsApp`, 'message-circle');
     },
+    importReport: () => setSheet({ type: 'import' }),
+    // An expense that repeats in the report becomes a fixed expense, charged on the 1st
+    // until the user sets the real day.
+    addRecurring: (list) =>
+      change(
+        (s) => list.forEach((x) => s.expenses.push({ id: `rep-${x.id}`, name: x.name, amount: x.monthly, category: x.category || 'other', freq: 'monthly', day: 1 })),
+        list.length === 1 ? `"${list[0].name}" נוסף להוצאות הקבועות` : `${list.length} הוצאות נוספו להוצאות הקבועות`,
+      ),
     setTax: (v) => change((s) => (s.taxPct = Math.min(60, v)), 'אחוז המס עודכן'),
     setGoal: (v) => change((s) => (s.goal = v), 'היעד החודשי עודכן'),
     setCushion: (v) => change((s) => (s.cushion = v), 'כרית הביטחון עודכנה'),
@@ -363,6 +381,7 @@ function App({ view, onViewChange }) {
           ${!state.setupDone
             ? html`<${Onboarding}
                 state=${state}
+                onImport=${on.importReport}
                 onDone=${({ stage, cushion }) => {
                   update((s) => {
                     s.setupDone = true;
@@ -532,6 +551,15 @@ function App({ view, onViewChange }) {
         update((s) => Object.assign(s, v));
         setSheet(null);
         showToast('ההגדרות נשמרו', 'check');
+      }}
+    />`}
+    ${sheet?.type === 'import' &&
+    html`<${ImportSheet}
+      onClose=${() => setSheet(null)}
+      onSave=${(rep) => {
+        const t = reportTotals(rep);
+        change((s) => (s.report = { ...rep, savedOn: TODAY }), `הדוח נקלט: הכנסות ${fmt(t.in)}, הוצאות ${fmt(t.out)}`);
+        setSheet(null);
       }}
     />`}
     ${sheet?.type === 'stages' && html`<${StagesSheet} state=${state} onClose=${() => setSheet(null)} onPick=${moveStage} />`}
