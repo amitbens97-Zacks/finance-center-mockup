@@ -219,8 +219,7 @@ export function StageTrack({ stage, onOpen }) {
         </li>`,
       )}
     </ol>
-    <span class="mt-1 flex items-center justify-between gap-2 text-[12px] font-semibold text-muted">
-      <span class="fb-hand !text-[19px]">כאן העסק שלך עכשיו</span>
+    <span class="mt-1 flex items-center justify-end text-[12px] font-semibold">
       <span class="text-brand-600 group-hover:underline">מה כל שלב כולל</span>
     </span>
   </button>`;
