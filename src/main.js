@@ -10,7 +10,7 @@
 import { html, render, useState, useEffect, useRef, Icon, PencilCheck, cx } from './lib.js';
 import { Button, Toast, Logo, PartnerBubble } from './components.js';
 import { DevPanel } from './devnotes.js';
-import { ImportSheet, ReportInvite } from './reportui.js';
+import { ImportSheet } from './reportui.js';
 import { reportTotals } from './report.js';
 import { Tag, BoardHeading, StageTrack, NextStep } from './ui.js';
 import { SetupBoard, FirstBoard, ActiveBoard } from './boards.js';
@@ -50,15 +50,16 @@ const HEADINGS = {
 
 // The finance center opens only when "העסק במספרים" is done, so the money, the setup
 // budget (with what was paid) and the fixed expenses are already there. The first entry
-// asks one thing and opens the board that fits the answer.
-function Onboarding({ state, onDone, onImport }) {
+// asks one thing and opens the board that fits the answer. With paying clients there may
+// be invoices, so stages 2 and 3 first offer the P&L file (onAsk); it can be skipped.
+function Onboarding({ state, onDone, onAsk }) {
   const guess = guessStage(state);
   const [stage, setStage] = useState(null);
   const b = setupSummary(state);
   const monthly = Math.round(state.expenses.reduce((s, x) => s + monthlyCost(x), 0));
   const pick = (id) => {
     setStage(id);
-    setTimeout(() => onDone({ stage: id, cushion: monthly * 2 }), 260);
+    setTimeout(() => (id === 'setup' ? onDone : onAsk)({ stage: id, cushion: monthly * 2 }), 260);
   };
   const rt = state.report ? reportTotals(state.report) : null;
   const dataHint = rt
@@ -103,9 +104,6 @@ function Onboarding({ state, onDone, onImport }) {
         ${carried.map(([k, v]) => html`<div key=${k}><dt class="text-[12px] font-semibold text-muted">${k}</dt><dd class="font-display text-[16px] font-extrabold tabular-nums text-ink">${v}</dd></div>`)}
       </dl>
     </div>
-    ${rt
-      ? html`<p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[14px] bg-money-50 px-4 py-2.5 text-[14px] text-ink"><${Icon} name="file-spreadsheet" size=${16} class="text-money" /><b>הדוח נקלט:</b> הכנסות ${fmt(rt.in)}, הוצאות ${fmt(rt.out)}<button type="button" onClick=${onImport} class="ms-auto text-[13px] font-bold text-brand-600 hover:underline cursor-pointer">דוח אחר</button></p>`
-      : html`<${ReportInvite} on=${{ importReport: onImport }} class="mt-3" />`}
   </div>`;
 }
 
@@ -281,6 +279,17 @@ function App({ view, onViewChange }) {
     setSheet(null);
     showToast(`עברת לשלב ${STAGES.find((s) => s.id === id).n}: ${STAGES.find((s) => s.id === id).label}`, 'milestone', () => setState(before));
   };
+  // The end of the first entry. `extra` lets the report window save the file in the same step.
+  const finish = ({ stage, cushion }, extra, msg) => {
+    update((s) => {
+      s.setupDone = true;
+      s.stage = stage;
+      // Suggested cushion: two months of expenses. Can be changed in the settings.
+      if (stage === 'active') s.cushion = cushion;
+      extra?.(s);
+    });
+    showToast(msg ? `המרכז הפיננסי מוכן · ${msg}` : 'המרכז הפיננסי מוכן', 'check');
+  };
   const on = {
     paid: markPaid,
     remind,
@@ -381,22 +390,15 @@ function App({ view, onViewChange }) {
           ${!state.setupDone
             ? html`<${Onboarding}
                 state=${state}
-                onImport=${on.importReport}
-                onDone=${({ stage, cushion }) => {
-                  update((s) => {
-                    s.setupDone = true;
-                    s.stage = stage;
-                    // Suggested cushion: two months of expenses. Can be changed in the settings.
-                    if (stage === 'active') s.cushion = cushion;
-                  });
-                  showToast('המרכז הפיננסי מוכן', 'check');
-                }}
+                onDone=${finish}
+                onAsk=${(first) => setSheet({ type: 'import', first })}
               />`
             : html`<div class="rise flex flex-col gap-5 md:gap-6">
                 <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <${BoardHeading} stage=${state.stage} title=${head.title} sub=${head.sub} />
-                  <div class="flex items-center gap-2">
+                  <div class="flex flex-wrap items-center gap-2 md:flex-nowrap max-md:[&>:first-child]:basis-[calc(100%-52px)]">
                     <${StageTrack} stage=${state.stage} onOpen=${() => setSheet({ type: 'stages' })} />
+                    <button type="button" onClick=${on.importReport} title="העלאת דוח רווח והפסד מאקסל" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border-[1.5px] max-md:order-last border-line bg-white px-3 text-[14px] font-bold text-ink hover:border-brand-300 hover:text-brand-600 cursor-pointer"><${Icon} name="file-spreadsheet" size=${18} class="text-brand-600" />דוח רווח והפסד</button>
                     <button type="button" onClick=${on.settings} title="הגדרות" aria-label="הגדרות" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-white hover:text-brand-600 cursor-pointer"><${Icon} name="settings-2" size=${20} /></button>
                   </div>
                 </div>
@@ -555,11 +557,19 @@ function App({ view, onViewChange }) {
     />`}
     ${sheet?.type === 'import' &&
     html`<${ImportSheet}
-      onClose=${() => setSheet(null)}
+      first=${!!sheet.first}
+      onClose=${() => {
+        setSheet(null);
+        // On the first entry, closing the window is "continue without a report".
+        if (sheet.first) finish(sheet.first);
+      }}
       onSave=${(rep) => {
         const t = reportTotals(rep);
-        change((s) => (s.report = { ...rep, savedOn: TODAY }), `הדוח נקלט: הכנסות ${fmt(t.in)}, הוצאות ${fmt(t.out)}`);
+        const msg = `הדוח נקלט: הכנסות ${fmt(t.in)}, הוצאות ${fmt(t.out)}`;
+        const save = (s) => (s.report = { ...rep, savedOn: TODAY });
         setSheet(null);
+        if (sheet.first) finish(sheet.first, save, msg);
+        else change(save, msg);
       }}
     />`}
     ${sheet?.type === 'stages' && html`<${StagesSheet} state=${state} onClose=${() => setSheet(null)} onPick=${moveStage} />`}

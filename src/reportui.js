@@ -36,7 +36,7 @@ export const SAMPLES = [
 
 // ---------- the window: choose a file, then check what was read ----------
 
-export function ImportSheet({ onClose, onSave }) {
+export function ImportSheet({ first, onClose, onSave }) {
   const [rep, setRep] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -60,8 +60,12 @@ export function ImportSheet({ onClose, onSave }) {
 
   if (rep) return html`<${Review} rep=${rep} onBack=${() => setRep(null)} onClose=${onClose} onSave=${onSave} />`;
 
-  return html`<${Sheet} title="העלאת דוח רווח והפסד" onClose=${onClose} wide>
-    <p class="mb-3 text-[15px] text-ink">מכל מערכת חשבוניות. ההכנסות וההוצאות שנרשמו שם ייכנסו לכאן לפי חודשים, ואפשר לבדוק כל שורה לפני השמירה.</p>
+  // On the first entry (stage 2 or 3) the window is an offer: a clear way on without a file.
+  const skip = first
+    ? html`<span class="text-[13px] text-muted max-sm:hidden">אפשר להעלות גם אחר כך, מ"דוח רווח והפסד" בראש הלוח.</span><${Button} variant="secondary" onClick=${onClose} class="max-sm:flex-1">להמשיך בלי דוח<${Icon} name="arrow-left" size=${17} /><//>`
+    : null;
+  return html`<${Sheet} title=${first ? 'יש לך מערכת חשבוניות?' : 'העלאת דוח רווח והפסד'} onClose=${onClose} footer=${skip} wide>
+    <p class="mb-3 text-[15px] text-ink">${first ? 'אפשר להעלות את דוח הרווח והפסד שלה, וההכנסות וההוצאות שנרשמו שם ייכנסו לכאן לפי חודשים. לא חובה.' : 'מכל מערכת חשבוניות. ההכנסות וההוצאות שנרשמו שם ייכנסו לכאן לפי חודשים, ואפשר לבדוק כל שורה לפני השמירה.'}</p>
     <label
       class=${cx('flex cursor-pointer flex-col items-center gap-2 rounded-[16px] border-2 border-dashed px-4 py-7 text-center transition-colors', drag ? 'border-brand-600 bg-brand-50' : 'border-brand-300 bg-white hover:bg-brand-50')}
       onDragOver=${(e) => (e.preventDefault(), setDrag(true))}
