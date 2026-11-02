@@ -153,6 +153,25 @@
     </svg>
     <div id="app"></div>
     <script src="./assets/ds/bundle.js"></script>
-    <script type="module" src="./src/main.js"></script>
+    <script>
+      // GitHub Pages lets the browser keep each file for 10 minutes, and the module names
+      // never change, so a new version could show up late. A fresh stamp on every load
+      // makes the browser always fetch the current modules.
+      (function () {
+        var v = Date.now(), imports = {};
+        ['boards', 'chart', 'components', 'data', 'devnotes', 'finance', 'lib', 'main', 'report', 'reportui', 'sheets', 'ui', 'viewswitch'].forEach(function (m) {
+          var url = new URL('./src/' + m + '.js', location.href).href;
+          imports[url] = url + '?v=' + v;
+        });
+        var map = document.createElement('script');
+        map.type = 'importmap';
+        map.textContent = JSON.stringify({ imports: imports });
+        document.currentScript.after(map);
+        var main = document.createElement('script');
+        main.type = 'module';
+        main.src = './src/main.js?v=' + v;
+        map.after(main);
+      })();
+    </script>
   </body>
 </html>
