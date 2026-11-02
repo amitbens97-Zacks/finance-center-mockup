@@ -276,16 +276,27 @@ export function alerts(state) {
         tone: 'info',
         icon: 'calendar-x',
         title: inc.sure === 0 ? `ל${monthName(m)} עוד אין אף תשלום שנקבע` : `ל${monthName(m)} נקבעו רק ${fmt(inc.sure)}`,
-        text: open ? `חסרים ${fmt(Math.max(0, goalOf(state) - inc.net))} ליעד. יש ${state.openDeals.length} עסקאות פתוחות, עד ${fmt(open)}.` : `חסרים ${fmt(Math.max(0, goalOf(state) - inc.net))} ליעד.`,
+        text: open ? `חסרים ${fmt(Math.max(0, goalOf(state) - inc.net))} רווח נקי ליעד. יש ${state.openDeals.length} עסקאות פתוחות, עד ${fmt(open)}.` : `חסרים ${fmt(Math.max(0, goalOf(state) - inc.net))} רווח נקי ליעד.`,
         action: open ? 'deals' : null,
       });
       break;
     }
   }
+  // The money is entered by hand, so in stage 3 it drifts from the bank unless it is
+  // checked. Four weeks after the last check (or the opening balance), ask once.
+  const checked = balanceCheckedOn(state);
+  if (active && daysBetween(checked, TODAY) >= 28)
+    out.push({ id: 'balance-check', tone: 'info', icon: 'landmark', title: 'הגיע הזמן לבדוק את היתרה', text: `האישור האחרון היה ב-${dm(checked)}. לפי החישוב בקופה ${fmt(balanceOn(state, TODAY))}, כדאי להשוות לבנק.`, action: 'balance' });
   return out;
 }
 
-export const ACTION_LABEL = { remind: 'תזכורת ב-WhatsApp', paid: 'התקבל', deals: 'לעסקאות הפתוחות' };
+// The last day the user confirmed the balance: saving the balance window (even with no
+// change), an edit of the money, or the opening balance itself.
+export function balanceCheckedOn(state) {
+  return [state.opening.date, state.balanceChecked, ...state.adjustments.map((a) => a.date)].filter(Boolean).sort().pop();
+}
+
+export const ACTION_LABEL = { remind: 'תזכורת ב-WhatsApp', paid: 'התקבל', deals: 'לעסקאות הפתוחות', balance: 'לבדיקת היתרה' };
 
 export function paymentLabel(deal, p) {
   if (deal.monthly) return `מנוי חודשי · ${monthName(p.due)}`;

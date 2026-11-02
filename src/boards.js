@@ -128,7 +128,7 @@ function Tabs({ n, title, list, tab, onTab, children }) {
     html`<h2 class="fb-h3 mb-3 flex items-center gap-2.5">
       ${n != null && html`<span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-600 font-display text-[16px] font-extrabold text-white" aria-hidden="true">${n}</span>`}${title}
     </h2>`}
-    <div role="tablist" class="no-scrollbar -mx-1 mb-4 flex gap-1 overflow-x-auto px-1">
+    <div role="tablist" class="mb-4 flex flex-wrap gap-1">
       ${list.map(
         ([id, label, icon]) => html`<button
           key=${id}
@@ -163,7 +163,7 @@ function BudgetRow({ x, on }) {
     </div>
     ${cell('תכננת', html`<${NumEdit} value=${x.planned} label=${`תכננת ל${x.name}`} onSave=${(v) => on.setItem(x.id, { planned: v })} quiet class="text-[16px]" />`)}
     ${cell('שולם', html`<${NumEdit} value=${x.spent} label=${`שולם על ${x.name}`} onSave=${(v) => on.setItem(x.id, { spent: v })} quiet class=${cx('text-[16px]', over > 0 && '!text-error')} />`)}
-    ${cell('נשאר לשלם', html`<span class=${cx('font-display text-[16px] font-extrabold tabular-nums', left ? 'text-ink' : 'text-faint')}>${left ? fmt(left) : '—'}</span>`)}
+    ${cell('נשאר לשלם', html`<span class=${cx('font-display text-[16px] font-extrabold tabular-nums', left ? 'text-ink' : 'text-faint')}>${fmt(left)}</span>`)}
     <div class="flex items-center justify-end">
       <div class="flex flex-col items-center md:block"><span class="block text-[12px] font-bold text-muted md:hidden">שולם במלואו</span><button
         type="button"
@@ -295,7 +295,7 @@ export function BudgetPanel({ state, on, n }) {
         <span class="min-w-0"><b class="block text-[15px]">עוד לא חולק לפריטים</b><button type="button" onClick=${on.addItem} class="text-[12px] font-bold text-brand-600 hover:underline cursor-pointer">לחלק לפריט חדש</button></span>
       </div>
       <div><span class="block text-[12px] font-bold text-muted md:hidden">תכננת</span><${Num} n=${b.unallocated} class="text-[16px]" /></div>
-      <div><span class="block text-[12px] font-bold text-muted md:hidden">שולם</span><span class="font-display text-[16px] font-extrabold text-faint">—</span></div>
+      <div><span class="block text-[12px] font-bold text-muted md:hidden">שולם</span><span class="font-display text-[16px] font-extrabold text-faint">${fmt(0)}</span></div>
       <div><span class="block text-[12px] font-bold text-muted md:hidden">נשאר לשלם</span><${Num} n=${b.unallocated} class="text-[16px]" /></div>
     </div>`}
     <div class=${cx('grid grid-cols-4 items-center gap-x-2 gap-y-1 border-t-2 border-ink/70 pt-3 md:gap-x-3', BUDGET_COLS)}>
@@ -642,7 +642,7 @@ function WeekTable({ state }) {
                   </span>
                 </td>`;
               })}
-              <td class="border-t border-line px-2 py-2.5 text-center font-display font-extrabold tabular-nums text-ink">${r.target == null ? '—' : r.money ? fmt(r.target) : r.target}</td>
+              <td class="border-t border-line px-2 py-2.5 text-center font-display font-extrabold tabular-nums text-ink">${r.target == null ? '' : r.money ? fmt(r.target) : r.target}</td>
             </tr>`,
           )}
         </tbody>

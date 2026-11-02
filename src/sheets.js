@@ -45,7 +45,7 @@ export function BalanceSheet({ state, onClose, onSave }) {
     onClose=${onClose}
     footer=${html`<${Button} variant="secondary" onClick=${onClose}>חזרה<//><${Button} disabled=${v == null} onClick=${() => onSave(v)}>שמירה<//>`}
   >
-    <${Field} label=${state.stage === 'active' ? 'כמה יש היום בחשבון העסק?' : 'כמה כסף יש היום לעסק?'} hint="אפשר לבדוק באפליקציה של הבנק. פעם בחודש נבקש לאשר את המספר.">
+    <${Field} label=${state.stage === 'active' ? 'כמה יש היום בחשבון העסק?' : 'כמה כסף יש היום לעסק?'} hint=${state.stage === 'active' ? 'אפשר לבדוק באפליקציה של הבנק. פעם בחודש נבקש לאשר את המספר.' : 'אפשר לבדוק באפליקציה של הבנק.'}>
       <${MoneyInput} value=${v} onInput=${setV} big autofocus />
     <//>
     <p class="rounded-xl bg-white p-3 text-[14px]">

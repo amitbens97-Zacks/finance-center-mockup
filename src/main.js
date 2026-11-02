@@ -334,7 +334,7 @@ function App({ view, onViewChange }) {
     setCushion: (v) => change((s) => (s.cushion = v), 'כרית הביטחון עודכנה'),
   };
   const list = alerts(state);
-  const alertAct = (a) => (a.action === 'remind' ? remind(a.deal, a.payment) : a.action === 'paid' ? markPaid(a.deal, a.payment) : toTab('payments'));
+  const alertAct = (a) => (a.action === 'remind' ? remind(a.deal, a.payment) : a.action === 'paid' ? markPaid(a.deal, a.payment) : a.action === 'balance' ? on.balance() : toTab('payments'));
   const step = state.setupDone
     ? nextStep(state, list, {
         alert: alertAct,
@@ -464,7 +464,10 @@ function App({ view, onViewChange }) {
       onClose=${() => setSheet(null)}
       onSave=${(v) => {
         const diff = v - balanceOn(state, TODAY);
-        if (diff) update((s) => s.adjustments.push({ date: TODAY, amount: diff }));
+        update((s) => {
+          if (diff) s.adjustments.push({ date: TODAY, amount: diff });
+          s.balanceChecked = TODAY;
+        });
         setSheet(null);
         showToast(diff ? `עודכן · ${signed(diff)} נרשמו כעדכון יתרה` : 'הסכום אושר', 'check');
       }}
