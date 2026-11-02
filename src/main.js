@@ -76,7 +76,7 @@ function Onboarding({ state, onDone, onAsk }) {
     <section class="rise fb-panel !p-5 md:!p-7">
       <span class="fb-eyebrow">נפתח בסיום "העסק במספרים"</span>
       <h1 class="fb-h1 mt-1 text-[26px] md:text-[32px]">איפה <span class="fb-marker">העסק עומד</span> היום?</h1>
-      <p class="mt-2 text-[16px] text-ink">שאלה אחת, ולפי התשובה נראה לך רק את מה שחשוב עכשיו. כשהעסק יתקדם, נציע לעבור לשלב הבא.</p>
+      <p class="mt-2 text-[16px] text-ink">לפי התשובה נראה לך רק את מה שחשוב עכשיו.</p>
       <div class="mt-5 flex flex-col gap-2.5" role="radiogroup">
         ${STAGES.map(
           (s) => html`<button
