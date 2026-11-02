@@ -91,7 +91,7 @@ function Onboarding({ state, onDone, onAsk }) {
             <span class=${cx('grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 font-display text-[18px] font-extrabold', stage === s.id ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white text-ink')}>${s.n}</span>
             <span class="min-w-0 flex-1">
               <span class="flex flex-wrap items-center gap-2"><b class="!text-[17px]">${s.who}</b>${s.id === guess && html`<${Tag} tone="due">לפי הנתונים<//>`}</span>
-              <span class="mt-0.5 block text-[14px] leading-relaxed text-muted">${s.label}: ${s.shows}</span>
+              <span class="mt-0.5 block text-[14px] text-muted">${s.label}: ${s.pitch}</span>
             </span>
           </button>`,
         )}
