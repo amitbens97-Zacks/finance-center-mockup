@@ -115,14 +115,15 @@ const EXPENSES = [
 // Before the first client there is no paid advertising yet.
 const SETUP_EXPENSES = EXPENSES.filter((x) => x.id !== 'x4');
 
-// The setup budget: one-time items planned in "העסק במספרים". spent = what was paid
-// so far (on spentOn), done = nothing more to pay. All three come in from that step,
+// The setup budget: one-time items from "העסק במספרים". spent = what was paid so far
+// (on spentOn), planned = the item's total (שולם + נשאר לשלם; not shown as a column),
+// done = nothing more to pay. All three come in from that step,
 // so the first entry never asks for them.
 const SETUP_ITEMS = [
   { id: 's1', name: 'לוגו ומיתוג', icon: 'palette', planned: 1200, spent: 1200, spentOn: '2026-09-08', done: true },
   { id: 's2', name: 'אתר ודף נחיתה', icon: 'monitor', planned: 2500, spent: 1800, spentOn: '2026-09-22', done: false },
   { id: 's3', name: 'מצלמה ותאורה לזום', icon: 'camera', planned: 900, spent: 0, spentOn: null, done: false },
-  { id: 's4', name: 'פתיחת תיק ועורך דין לחוזה', icon: 'scale', planned: 800, spent: 950, spentOn: '2026-10-05', done: true },
+  { id: 's4', name: 'פתיחת תיק ועורך דין לחוזה', icon: 'scale', planned: 950, spent: 950, spentOn: '2026-10-05', done: true },
   { id: 's5', name: 'קמפיין השקה', icon: 'megaphone', planned: 1500, spent: 0, spentOn: null, done: false },
 ];
 

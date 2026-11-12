@@ -17,7 +17,7 @@ import {
   addDays, addMonths, dm, monthName, monthEnd, daysBetween, toDate, fmt,
   series, balanceOn, monthSummary, next30, weeks, WEEK_ROWS,
   dealPayments, paymentStatus, paymentLabel, productOf, termsOf, freqText, monthlyCost, expenseDates,
-  setupSummary, runway, breakEven, readiness, goalOf,
+  setupSummary, itemTotal, itemLeft, runway, breakEven, readiness, goalOf,
 } from './finance.js';
 
 const RANGE_END = '2026-12-31';
@@ -146,24 +146,27 @@ function Tabs({ n, title, list, tab, onTab, children }) {
 
 // ---------- stage 1: setup ----------
 
-const BUDGET_COLS = 'md:grid-cols-[minmax(0,1fr)_124px_124px_112px_96px]';
+// Amit, 12.11: no "תכננת" column, as in "העסק במספרים". "שולם" and "נשאר לשלם" are both
+// edited right there; the item's total is always שולם + נשאר לשלם.
+const BUDGET_COLS = 'md:grid-cols-[minmax(0,1fr)_132px_132px_96px]';
 
 function BudgetRow({ x, on }) {
-  const over = x.spent - x.planned;
-  const left = x.done ? 0 : Math.max(0, x.planned - x.spent);
+  const left = itemLeft(x);
+  const setSpent = (v) => on.setItem(x.id, { spent: v, planned: Math.max(itemTotal(x), v || 0) });
+  const setLeft = (v) => on.setItem(x.id, { planned: (x.spent || 0) + (v || 0) });
   const cell = (label, node) => html`<div class="min-w-0"><span class="block text-[12px] font-bold text-muted md:hidden">${label}</span>${node}</div>`;
   const more = (cls) => html`<button type="button" onClick=${() => on.item(x)} title="שם, תשלומים ומחיקה" aria-label=${`עוד אפשרויות: ${x.name}`} class=${cx('h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-brand-50 hover:text-brand-600 cursor-pointer', cls)}><${Icon} name="ellipsis" size=${18} /></button>`;
-  return html`<li class=${cx('grid grid-cols-4 items-end gap-x-2 gap-y-2 border-t border-line py-3 md:items-center md:gap-x-3', BUDGET_COLS)}>
-    <div class="col-span-4 flex min-w-0 items-center gap-2.5 md:col-span-1">
+  return html`<li class=${cx('grid grid-cols-3 items-end gap-x-2 gap-y-2 border-t border-line py-3 md:items-center md:gap-x-3', BUDGET_COLS)}>
+    <div class="col-span-3 flex min-w-0 items-center gap-2.5 md:col-span-1">
       <span class="fb-chip-ic h-9 w-9 shrink-0"><${Icon} name=${x.icon || 'package'} size=${17} /></span>
       <b class=${cx('min-w-0 truncate text-[15px]', x.done && 'text-muted')}>${x.name}</b>
-      ${over > 0 && html`<${Tag} tone="late">חריגה ${fmt(over)}<//>`}
       <span class="flex-1"></span>
       ${more('inline-flex md:hidden')}
     </div>
-    ${cell('תכננת', html`<${NumEdit} value=${x.planned} label=${`תכננת ל${x.name}`} onSave=${(v) => on.setItem(x.id, { planned: v })} quiet class="text-[16px]" />`)}
-    ${cell('שולם', html`<${NumEdit} value=${x.spent} label=${`שולם על ${x.name}`} onSave=${(v) => on.setItem(x.id, { spent: v })} quiet class=${cx('text-[16px]', over > 0 && '!text-error')} />`)}
-    ${cell('נשאר לשלם', html`<span class=${cx('font-display text-[16px] font-extrabold tabular-nums', left ? 'text-ink' : 'text-faint')}>${fmt(left)}</span>`)}
+    ${cell('שולם', html`<${NumEdit} value=${x.spent} label=${`שולם על ${x.name}`} onSave=${setSpent} quiet class="text-[16px]" />`)}
+    ${cell('נשאר לשלם', x.done
+      ? html`<span class="font-display text-[16px] font-extrabold tabular-nums text-faint">${fmt(0)}</span>`
+      : html`<${NumEdit} value=${left} label=${`נשאר לשלם על ${x.name}`} onSave=${setLeft} quiet class="text-[16px]" />`)}
     <div class="flex items-center justify-end">
       <div class="flex flex-col items-center md:block"><span class="block text-[12px] font-bold text-muted md:hidden">שולם במלואו</span><button
         type="button"
@@ -180,19 +183,11 @@ function BudgetRow({ x, on }) {
   </li>`;
 }
 
-// Past the budget: one calm line right under the total, with what caused it and one fix.
-// An item over its plan that still fits in the budget gets a quiet line instead.
+// Past the budget: one calm line right under the total, and one fix. Without "תכננת" there
+// is no overrun per item; only the items together can pass the budget.
 function Overrun({ b, on }) {
-  if (!b.overBudget) {
-    if (!b.overItems.length) return null;
-    return html`<p class="mt-3 flex items-center gap-2 rounded-xl bg-warn-50 px-3 py-2 text-[13px] font-semibold text-warn">
-      <${Icon} name="info" size=${16} />${b.overItems.length === 1 ? `"${b.overItems[0].name}" עבר את מה שתכננת ב-${fmt(b.over)}` : `${b.overItems.length} פריטים עברו את מה שתכננת ב-${fmt(b.over)}`}. זה יצא מהחלק שעוד לא חולק, ונשארת בתוך התקציב.
-    </p>`;
-  }
-  const causes = [
-    ...b.overItems.map((x) => `${x.name}: שולמו ${fmt(x.spent)}, תכננת ${fmt(x.planned)}`),
-    ...(b.allocated > b.budget ? [`הפריטים שתכננת עוברים את התקציב ב-${fmt(b.allocated - b.budget)}`] : []),
-  ];
+  if (!b.overBudget) return null;
+  const causes = b.allocated > b.budget ? [`הפריטים (שולם + נשאר לשלם) עוברים את התקציב ב-${fmt(b.allocated - b.budget)}`] : [];
   return html`<div role="status" class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-error-50 px-3.5 py-2.5">
     <p class="flex min-w-0 grow basis-[300px] items-start gap-2 text-[14px] text-ink">
       <${Icon} name="triangle-alert" size=${17} class="mt-0.5 shrink-0 text-error" />
@@ -285,22 +280,20 @@ export function BudgetPanel({ state, on, n }) {
     </div>
 
     <div class=${cx('hidden pb-2 text-[12px] font-bold text-muted md:grid md:gap-x-3', BUDGET_COLS)}>
-      <span>פריט</span><span>תכננת</span><span>שולם</span><span>נשאר לשלם</span><span class="text-end">שולם במלואו</span>
+      <span>פריט</span><span>שולם</span><span>נשאר לשלם</span><span class="text-end">שולם במלואו</span>
     </div>
     <ul>${b.items.map((x) => html`<${BudgetRow} key=${x.id} x=${x} on=${on} />`)}</ul>
     ${b.unallocated > 0 &&
-    html`<div class=${cx('grid grid-cols-4 items-end gap-x-2 gap-y-2 border-t border-line py-3 md:items-center md:gap-x-3', BUDGET_COLS)}>
-      <div class="col-span-4 flex min-w-0 items-center gap-2.5 md:col-span-1">
+    html`<div class=${cx('grid grid-cols-3 items-end gap-x-2 gap-y-2 border-t border-line py-3 md:items-center md:gap-x-3', BUDGET_COLS)}>
+      <div class="col-span-3 flex min-w-0 items-center gap-2.5 md:col-span-1">
         <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-[1.5px] border-dashed border-brand-300 text-brand-600"><${Icon} name="plus" size=${16} /></span>
         <span class="min-w-0"><b class="block text-[15px]">עוד לא חולק לפריטים</b><button type="button" onClick=${on.addItem} class="text-[12px] font-bold text-brand-600 hover:underline cursor-pointer">לחלק לפריט חדש</button></span>
       </div>
-      <div><span class="block text-[12px] font-bold text-muted md:hidden">תכננת</span><${Num} n=${b.unallocated} class="text-[16px]" /></div>
       <div><span class="block text-[12px] font-bold text-muted md:hidden">שולם</span><span class="font-display text-[16px] font-extrabold text-faint">${fmt(0)}</span></div>
       <div><span class="block text-[12px] font-bold text-muted md:hidden">נשאר לשלם</span><${Num} n=${b.unallocated} class="text-[16px]" /></div>
     </div>`}
-    <div class=${cx('grid grid-cols-4 items-center gap-x-2 gap-y-1 border-t-2 border-ink/70 pt-3 md:gap-x-3', BUDGET_COLS)}>
-      <b class="col-span-4 text-[15px] md:col-span-1">סך הכול</b>
-      <div><span class="block text-[12px] font-bold text-muted md:hidden">תכננת</span><${Num} n=${b.allocated + b.unallocated} class="text-[15px] md:text-[17px]" /></div>
+    <div class=${cx('grid grid-cols-3 items-center gap-x-2 gap-y-1 border-t-2 border-ink/70 pt-3 md:gap-x-3', BUDGET_COLS)}>
+      <b class="col-span-3 text-[15px] md:col-span-1">סך הכול</b>
       <div><span class="block text-[12px] font-bold text-muted md:hidden">שולם</span><${Num} n=${b.spent} class="text-[15px] md:text-[17px]" /></div>
       <div><span class="block text-[12px] font-bold text-muted md:hidden">נשאר לשלם</span><${Num} n=${b.remaining} class="text-[15px] md:text-[17px]" /></div>
     </div>

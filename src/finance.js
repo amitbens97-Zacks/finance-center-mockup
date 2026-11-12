@@ -405,21 +405,25 @@ export const monthlyFixed = (state) => state.expenses.reduce((s, x) => s + month
 // The setup budget. `budget` is the total the user set (the slider), `allocated` is
 // what the items add up to. The part not yet split into items still counts as money
 // that will be spent, so it is inside "נשאר לשלם" and shortens how long the money lasts.
+// Amit, 12.11: no "תכננת" column. An item's total is שולם + נשאר לשלם (itemTotal); paying
+// more than was left raises it. `planned` stays in the data as that total.
+export const itemTotal = (x) => Math.max(x.planned || 0, x.spent || 0);
+export const itemLeft = (x) => (x.done ? 0 : itemTotal(x) - (x.spent || 0));
+
 export function setupSummary(state) {
   const items = state.setup || [];
-  const allocated = items.reduce((t, x) => t + x.planned, 0);
+  const allocated = items.reduce((t, x) => t + itemTotal(x), 0);
   const budget = state.setupBudget ?? allocated;
   const spent = items.reduce((t, x) => t + x.spent, 0);
-  const over = items.reduce((t, x) => t + Math.max(0, x.spent - x.planned), 0);
-  // The part of the budget not split into items is a reserve: an item that went over its
-  // plan takes from it first, so raising the budget can cover an overrun.
-  const unallocated = Math.max(0, budget - allocated - over);
+  const over = 0;
+  // The part of the budget not split into items is a reserve, counted in "נשאר לשלם".
+  const unallocated = Math.max(0, budget - allocated);
   // What is still to pay: the rest of every item that is not done, plus the reserve.
-  const remaining = items.filter((x) => !x.done).reduce((t, x) => t + Math.max(0, x.planned - x.spent), 0) + unallocated;
+  const remaining = items.reduce((t, x) => t + itemLeft(x), 0) + unallocated;
   // What the setup will cost in the end, and how much of that is past the budget.
   const final = spent + remaining;
   const overBudget = Math.max(0, final - budget);
-  const overItems = items.filter((x) => x.spent > x.planned).map((x) => ({ ...x, over: x.spent - x.planned }));
+  const overItems = [];
   return { items, planned: budget, budget, allocated, unallocated, spent, remaining, over, final, overBudget, overItems, done: items.filter((x) => x.done).length };
 }
 

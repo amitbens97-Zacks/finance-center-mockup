@@ -86,24 +86,25 @@ export function ExpenseSheet({ expense, onClose, onSave, onDelete }) {
   <//>`;
 }
 
-// One item of the setup budget: what was planned, what was paid, and whether it is done.
+// One item of the setup budget: what was paid, what is left to pay, and whether it is done.
+// Amit, 12.11: no "תכננת"; the item's total (planned) is saved as שולם + נשאר לשלם.
 export function SetupItemSheet({ item, onClose, onSave, onDelete }) {
   const [x, setX] = useState(item || { name: '', icon: 'circle-dot', planned: null, spent: 0, spentOn: null, done: false });
+  const [left, setLeft] = useState(item ? Math.max(item.planned || 0, item.spent || 0) - (item.spent || 0) : null);
   const set = (k, v) => setX((o) => ({ ...o, [k]: v }));
-  const ok = x.name.trim() && x.planned > 0;
-  const over = (x.spent || 0) - (x.planned || 0);
+  const total = (x.spent || 0) + (left || 0);
+  const ok = x.name.trim() && total > 0;
   return html`<${Sheet}
     title=${item ? x.name || 'פריט בתקציב' : 'פריט חדש בתקציב ההקמה'}
     onClose=${onClose}
     footer=${html`<span class="flex gap-2">${item ? html`<${Button} variant="text" class="!text-error" onClick=${() => onDelete(x)}><${Icon} name="trash-2" size=${15} />מחיקה<//>` : html`<${Button} variant="secondary" onClick=${onClose}>חזרה<//>`}</span>
-      <${Button} disabled=${!ok} onClick=${() => onSave({ ...x, spentOn: x.spent > 0 ? (x.spent !== (item?.spent || 0) ? TODAY : x.spentOn) : null })}>שמירה<//>`}
+      <${Button} disabled=${!ok} onClick=${() => onSave({ ...x, planned: total, spentOn: x.spent > 0 ? (x.spent !== (item?.spent || 0) ? TODAY : x.spentOn) : null })}>שמירה<//>`}
   >
     ${!item && html`<${Field} label="מה צריך לקנות או לשלם?"><input class=${inputCls} value=${x.name} onInput=${(e) => set('name', e.target.value)} placeholder="למשל: מיקרופון" /><//>`}
     <div class="grid grid-cols-2 gap-3">
-      <${Field} label="תכננת"><${MoneyInput} value=${x.planned} onInput=${(v) => set('planned', v)} /><//>
       <${Field} label="שילמת עד היום"><${MoneyInput} value=${x.spent} onInput=${(v) => set('spent', v ?? 0)} autofocus=${!!item} /><//>
+      <${Field} label="נשאר לשלם"><${MoneyInput} value=${left} onInput=${setLeft} /><//>
     </div>
-    ${over > 0 && html`<p class="-mt-1 mb-3 flex items-center gap-1.5 text-[14px] font-bold text-warn"><${Icon} name="triangle-alert" size=${16} />${fmt(over)} מעל מה שתכננת</p>`}
     <button
       type="button"
       role="checkbox"
